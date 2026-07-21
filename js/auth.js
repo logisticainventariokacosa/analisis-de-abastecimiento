@@ -42,7 +42,7 @@ if (formLogin) {
       const cred = await signInWithEmailAndPassword(auth, email, pass);
       await validarYRedirigir(cred.user);
     } catch (err) {
-      mostrarError("Correo o contraseña incorrectos.");
+      mostrarError("Correo o contraseña incorrectos. (" + err.code + ")");
     }
   });
 }
@@ -61,7 +61,6 @@ if (formRegistro) {
       return;
     }
 
-    // Primero verificamos si el correo está autorizado ANTES de crear la cuenta
     const autorizado = await correoAutorizado(email);
     if (!autorizado) {
       mostrarError("Este correo no está autorizado para registrarse.");
@@ -74,19 +73,21 @@ if (formRegistro) {
     } catch (err) {
       mostrarError(err.code === "auth/email-already-in-use"
         ? "Ese correo ya tiene una cuenta. Inicia sesión."
-        : "No se pudo crear la cuenta. Verifica los datos.");
+        : "No se pudo crear la cuenta. (" + err.code + ")");
     }
   });
 }
 
-// --- Login con Google (redirección, evita el problema de COOP con popups) ---
+// --- Login con Google (redirección) ---
 const btnGoogle = document.getElementById("btn-google");
 if (btnGoogle) {
   btnGoogle.addEventListener("click", async () => {
     try {
+      console.log("Iniciando signInWithRedirect...");
       await signInWithRedirect(auth, googleProvider);
     } catch (err) {
-      mostrarError("No se pudo iniciar sesión con Google.");
+      console.error("Error en signInWithRedirect:", err);
+      mostrarError("Google - " + err.code + ": " + err.message);
     }
   });
 }
@@ -96,11 +97,12 @@ getRedirectResult(auth).then(async (cred) => {
   if (cred && cred.user) {
     await validarYRedirigir(cred.user);
   }
-}).catch(() => {
-  mostrarError("No se pudo completar el inicio de sesión con Google.");
+}).catch((err) => {
+  console.error("Error en getRedirectResult:", err);
+  mostrarError("Google (redirect) - " + err.code + ": " + err.message);
 });
 
-// --- Protección de app.html: si no hay sesión válida, regresa al login ---
+// --- Protección de app.html ---
 export function protegerPagina() {
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
