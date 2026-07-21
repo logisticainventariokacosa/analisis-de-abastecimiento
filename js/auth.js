@@ -2,8 +2,7 @@ import { auth, db, googleProvider } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup, // <--- Cambiado de signInWithRedirect
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -78,29 +77,19 @@ if (formRegistro) {
   });
 }
 
-// --- Login con Google (redirección) ---
+// --- Login con Google (Ventana emergente) ---
 const btnGoogle = document.getElementById("btn-google");
 if (btnGoogle) {
   btnGoogle.addEventListener("click", async () => {
     try {
-      console.log("Iniciando signInWithRedirect...");
-      await signInWithRedirect(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      await validarYRedirigir(result.user);
     } catch (err) {
-      console.error("Error en signInWithRedirect:", err);
+      console.error("Error en signInWithPopup:", err);
       mostrarError("Google - " + err.code + ": " + err.message);
     }
   });
 }
-
-// Al volver de la redirección de Google, procesa el resultado
-getRedirectResult(auth).then(async (cred) => {
-  if (cred && cred.user) {
-    await validarYRedirigir(cred.user);
-  }
-}).catch((err) => {
-  console.error("Error en getRedirectResult:", err);
-  mostrarError("Google (redirect) - " + err.code + ": " + err.message);
-});
 
 // --- Protección de app.html ---
 export function protegerPagina() {
