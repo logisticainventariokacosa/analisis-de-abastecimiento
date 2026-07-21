@@ -2,7 +2,8 @@ import { auth, db, googleProvider } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -78,18 +79,26 @@ if (formRegistro) {
   });
 }
 
-// --- Login con Google ---
+// --- Login con Google (redirección, evita el problema de COOP con popups) ---
 const btnGoogle = document.getElementById("btn-google");
 if (btnGoogle) {
   btnGoogle.addEventListener("click", async () => {
     try {
-      const cred = await signInWithPopup(auth, googleProvider);
-      await validarYRedirigir(cred.user);
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
       mostrarError("No se pudo iniciar sesión con Google.");
     }
   });
 }
+
+// Al volver de la redirección de Google, procesa el resultado
+getRedirectResult(auth).then(async (cred) => {
+  if (cred && cred.user) {
+    await validarYRedirigir(cred.user);
+  }
+}).catch(() => {
+  mostrarError("No se pudo completar el inicio de sesión con Google.");
+});
 
 // --- Protección de app.html: si no hay sesión válida, regresa al login ---
 export function protegerPagina() {
