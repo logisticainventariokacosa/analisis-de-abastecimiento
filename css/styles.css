@@ -1,0 +1,160 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root {
+  --azul-base: #1B2A41;
+  --azul-base-alto: #24374F;
+  --fondo: #F7F8FA;
+  --ambar: #E8A03D;
+  --ambar-oscuro: #C7841F;
+  --verde-kpi: #2F8F6E;
+  --rojo-alerta: #C4432B;
+  --texto-principal: #1C1F26;
+  --texto-secundario: #6B7280;
+  --borde: #E3E6EB;
+  --radio: 10px;
+  --sombra: 0 1px 3px rgba(27,42,65,0.08), 0 1px 2px rgba(27,42,65,0.06);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background: var(--fondo);
+  color: var(--texto-principal);
+}
+
+h1, h2, h3, .display {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* --- Login --- */
+.login-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.login-card {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 36px 32px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.login-card .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.login-card .brand .barra {
+  width: 5px;
+  height: 28px;
+  background: var(--ambar);
+  border-radius: 3px;
+}
+
+.login-card h1 {
+  font-size: 20px;
+  margin: 0;
+  color: var(--azul-base);
+}
+
+.login-card p.sub {
+  color: var(--texto-secundario);
+  font-size: 13px;
+  margin: 4px 0 0;
+}
+
+label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 16px 0 6px;
+  color: var(--texto-principal);
+}
+
+input[type="email"], input[type="password"], input[type="text"] {
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color .15s;
+}
+
+input:focus {
+  border-color: var(--azul-base);
+  box-shadow: 0 0 0 3px rgba(27,42,65,0.12);
+}
+
+.btn-primario {
+  width: 100%;
+  margin-top: 22px;
+  padding: 12px;
+  background: var(--ambar);
+  color: #1C1F26;
+  border: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.btn-primario:hover { background: var(--ambar-oscuro); }
+
+.btn-google {
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px;
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.btn-google:hover { background: #FAFAFB; }
+
+.divisor {
+  text-align: center;
+  color: var(--texto-secundario);
+  font-size: 12px;
+  margin: 20px 0 4px;
+  position: relative;
+}
+
+.toggle-form {
+  text-align: center;
+  margin-top: 18px;
+  font-size: 13px;
+  color: var(--texto-secundario);
+}
+.toggle-form a { color: var(--azul-base); font-weight: 600; text-decoration: none; }
+
+#mensaje-error {
+  display: none;
+  background: #FDEDEA;
+  color: var(--rojo-alerta);
+  border: 1px solid #F5C6BC;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-top: 16px;
+}
+
+.oculto { display: none !important; }
