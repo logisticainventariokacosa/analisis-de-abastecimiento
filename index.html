@@ -46,17 +46,7 @@
       </form>
     </div>
   </div>
-  <script>
-  window.addEventListener('error', function(e) {
-    const el = document.getElementById('mensaje-error');
-    if (el) {
-      el.textContent = 'Error técnico: ' + (e.message || 'revisa consola') + ' | archivo: ' + (e.filename || '?');
-      el.style.display = 'block';
-    }
-  });
-</script>
-
-  <script type="module" src="js/auth.js"></script>
+   <script type="module" src="js/auth.js"></script>
   <script>
     document.getElementById("ir-registro").onclick = (e) => {
       e.preventDefault();
