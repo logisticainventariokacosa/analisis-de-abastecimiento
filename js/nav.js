@@ -26,6 +26,12 @@ onAuthStateChanged(auth, async (user) => {
   window.KACOSA.tiendas = tiendas;
   window.KACOSA.tiendaActiva = tiendas.includes("TODAS") ? null : tiendas[0] || null;
 
+  // "Alertas Kacosa" es solo para perfiles con acceso a TODAS las tiendas
+  const btnAlertas = document.querySelector('[data-vista="vista-alertas-kacosa"]');
+  if (btnAlertas && !tiendas.includes("TODAS")) {
+    btnAlertas.style.display = "none";
+  }
+
   document.dispatchEvent(new CustomEvent("kacosa:usuario-listo"));
 });
 
