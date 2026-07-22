@@ -59,7 +59,7 @@ function render() {
       <label for="na-periodo">¿Para cuánto tiempo necesitas abastecerte?</label>
       <select id="na-periodo" style="width:100%; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif">
         <option value="semana">Una semana</option>
-        <option value="mes">Un mes</option>
+        <option value="mes" selected>Un mes</option>
         <option value="meses">Varios meses</option>
       </select>
 
@@ -117,7 +117,24 @@ async function ejecutarAnalisis() {
   try {
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
-    const ventasProcesadas = procesarVentas(filasVentas);
+    
+    // --- Calcular el período para el análisis ---
+    let mesesAnalisis = null;
+    let semanasAnalisis = null;
+    
+    if (periodo === "semana") {
+      semanasAnalisis = 1;
+    } else if (periodo === "mes") {
+      mesesAnalisis = 1;
+    } else if (periodo === "meses") {
+      mesesAnalisis = mesesCantidad || 1;
+    }
+    
+    // Procesar ventas con el período especificado
+    const ventasProcesadas = procesarVentas(filasVentas, {
+      mesesAnalisis,
+      semanasAnalisis
+    });
 
     estadoTexto.textContent = "Leyendo stock de la tienda...";
     const filasStockTienda = parsearMHT(await archivoStockTienda.text());
@@ -231,7 +248,12 @@ async function finalizarCalculo(gruposConfirmados) {
 
   estado.resultadoFinal = resultado;
   estado.sugerencias = sugerencias;
-  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados.`;
+  
+  // Mostrar información del período en el mensaje
+  const mesesUsados = estado.ventasProcesadas.rangoFechas?.meses || '?';
+  const semanasUsadas = estado.ventasProcesadas.rangoFechas?.semanas || '?';
+  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsados} meses (${semanasUsadas} semanas).`;
+  
   mostrarResultados(resultado, sugerencias);
 
   // Deja el resultado disponible globalmente para el chat y otros módulos
@@ -240,6 +262,8 @@ async function finalizarCalculo(gruposConfirmados) {
     fechaAnalisis: estado.fechaAnalisis,
     periodo: estado.periodo,
     margenPct: estado.margenPct,
+    mesesUsados: estado.ventasProcesadas.rangoFechas?.meses,
+    semanasUsadas: estado.ventasProcesadas.rangoFechas?.semanas,
     materiales: resultado,
     sugerencias
   };
@@ -268,7 +292,7 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
 
     const infoTienda = stockTienda[codigo];
     const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
-    if (stockTiendaDisp > 0) return; // sí hay en tienda, no hace falta anexarlo forzado
+    if (stockTiendaDisp > 0) return;
 
     const empaque = Number(m.empaque) || 1;
     const aPedir = Math.min(empaque, stockKacosaDisp);
@@ -276,7 +300,7 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
     resultado.push({
       codigo,
       descripcion: m.descripcion,
-      clase: m.clase,
+      clase: m.clase || "D",
       ventasPeriodo: 0,
       stockTienda: stockTiendaDisp,
       stockKacosa: stockKacosaDisp,
@@ -324,9 +348,15 @@ function mostrarResultados(resultado, sugerencias) {
 
   const ordenado = resultado.slice().sort((a, b) => b.aPedir - a.aPedir);
 
+  const infoPeriodo = window.KACOSA.ultimoAnalisis;
+  const textoPeriodo = infoPeriodo 
+    ? `Período usado: ${infoPeriodo.mesesUsados || '?'} meses (${infoPeriodo.semanasUsadas || '?'} semanas)`
+    : '';
+
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">3. Resultado</h3>
+      <p class="vista-sub" style="margin-top:-4px">${textoPeriodo}</p>
       <div class="kpi-grid">
         <div class="kpi-card verde">
           <div class="label">Total a pedir</div>
