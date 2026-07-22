@@ -35,11 +35,16 @@ export function parsearMHT(textoArchivo) {
   if (filasHtml.length < 2) return [];
 
   const valorCelda = (td) => {
-    // Preferimos el valor "crudo" que SAP guarda en x:num (sin formato),
-    // luego x:str, y si no existe ninguno, el texto visible de la celda.
-    if (td.hasAttribute("x:num")) return td.getAttribute("x:num");
+    // IMPORTANTE: se prefiere el texto visible sobre x:num, porque en celdas de
+    // fecha SAP guarda en x:num el número de serie de Excel (ej. 46222) mientras
+    // que el texto visible ya trae la fecha legible (ej. "2026-07-19"). Para
+    // cantidades y códigos, el texto visible coincide exactamente con x:num/x:str,
+    // así que no hay pérdida de precisión.
+    const texto = td.textContent.trim();
+    if (texto !== "") return texto;
     if (td.hasAttribute("x:str")) return td.getAttribute("x:str");
-    return td.textContent.trim();
+    if (td.hasAttribute("x:num")) return td.getAttribute("x:num");
+    return "";
   };
 
   const encabezados = Array.from(filasHtml[0].querySelectorAll("td, th"))
