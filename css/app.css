@@ -1,0 +1,210 @@
+/* css/app.css - Shell de la aplicación (sidebar, header, vistas) */
+
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* --- Sidebar --- */
+.sidebar {
+  width: 240px;
+  background: var(--azul-base);
+  color: #fff;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 20px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  margin-bottom: 16px;
+}
+.sidebar .brand .barra { width: 5px; height: 26px; background: var(--ambar); border-radius: 3px; }
+.sidebar .brand h1 { font-size: 17px; margin: 0; color: #fff; }
+.sidebar .brand p { font-size: 11px; margin: 2px 0 0; color: rgba(255,255,255,0.55); }
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  color: rgba(255,255,255,0.75);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: background .15s, color .15s;
+  background: none;
+  border-top: none; border-right: none; border-bottom: none;
+  width: 100%;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+}
+.nav-item:hover { background: rgba(255,255,255,0.06); color: #fff; }
+.nav-item.activo { background: rgba(232,160,61,0.15); border-left-color: var(--ambar); color: #fff; }
+.nav-item .icono { font-size: 16px; width: 20px; text-align: center; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 20px 0;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+.sidebar-footer .correo {
+  font-size: 12px;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 10px;
+  word-break: break-all;
+}
+.btn-salir {
+  width: 100%;
+  padding: 9px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-salir:hover { background: rgba(255,255,255,0.15); }
+
+/* --- Contenido principal --- */
+.contenido {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.header-movil {
+  display: none;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border-bottom: 1px solid var(--borde);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+}
+.header-movil h2 { font-size: 15px; margin: 0; color: var(--azul-base); }
+
+#btn-hamburguesa {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  color: var(--azul-base);
+  padding: 4px 8px;
+}
+
+.overlay-sidebar {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 15;
+}
+.overlay-sidebar.visible { display: block; }
+
+.vistas-wrap {
+  padding: 28px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.vista { display: none; }
+.vista.activa { display: block; animation: aparecer .2s ease; }
+
+@keyframes aparecer {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.vista h2 {
+  font-size: 22px;
+  color: var(--azul-base);
+  margin: 0 0 4px;
+}
+.vista .vista-sub {
+  color: var(--texto-secundario);
+  font-size: 13px;
+  margin: 0 0 24px;
+}
+
+/* --- Tarjetas KPI (reutilizables en varias vistas) --- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.kpi-card {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 18px 20px;
+  position: relative;
+  overflow: hidden;
+  padding-left: 24px;
+}
+.kpi-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 4px;
+  background: var(--ambar);
+}
+.kpi-card.verde::before { background: var(--verde-kpi); }
+.kpi-card.rojo::before { background: var(--rojo-alerta); }
+
+.kpi-card .label {
+  font-size: 12px;
+  color: var(--texto-secundario);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.kpi-card .valor {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--azul-base);
+  margin-top: 4px;
+}
+
+/* --- Tarjeta genérica de contenido --- */
+.card {
+  background: #fff;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 22px;
+  margin-bottom: 20px;
+}
+
+/* --- Responsivo --- */
+@media (max-width: 860px) {
+  .sidebar {
+    position: fixed;
+    left: -260px;
+    top: 0;
+    z-index: 25;
+    transition: left .2s ease;
+    box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+  }
+  .sidebar.abierto { left: 0; }
+  .header-movil { display: flex; }
+  .vistas-wrap { padding: 18px; }
+}
