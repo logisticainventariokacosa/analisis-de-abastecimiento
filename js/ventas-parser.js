@@ -8,10 +8,14 @@ const CLASES_DEVOLUCION = ["910", "653", "651"]; // entradas por devolución (po
 const CLASES_RELEVANTES = [...CLASES_VENTA, ...CLASES_DEVOLUCION];
 
 /**
- * Procesa las filas ya parseadas del archivo de ventas (salida de parsearMHT).
+ * Procesa las filas ya parseadas del archivo de ventas.
+ * @param {Array<Object>} filas - salida de parsearMHT()
+ * @param {Object} opciones - opciones de procesamiento
+ * @param {number} opciones.mesesAnalisis - número de meses a considerar (opcional)
+ * @param {number} opciones.semanasAnalisis - número de semanas a considerar (opcional)
  * @returns {{ porMaterial: Object, rangoFechas: {inicio:Date, fin:Date, semanas:number, meses:number} }}
  */
-export function procesarVentas(filas) {
+export function procesarVentas(filas, opciones = {}) {
   const porMaterial = {}; // codigo -> { descripcion, unidades: { unidad: sumaSigned }, unidadMasUsada }
   let fechaMin = null;
   let fechaMax = null;
@@ -46,8 +50,31 @@ export function procesarVentas(filas) {
     m.conteoFilasPorUnidad[unidad] = (m.conteoFilasPorUnidad[unidad] || 0) + 1;
   });
 
-  // Calcula, por material: venta neta en unidad de venta (para clasificación ABCD)
-  // y venta neta convertida a unidad base (para el cálculo del "a pedir")
+  // --- Calcular semanas y meses (priorizar opciones del usuario) ---
+  let semanas, meses;
+  
+  if (opciones.semanasAnalisis !== undefined && opciones.semanasAnalisis !== null) {
+    // El usuario especificó semanas exactas
+    semanas = Math.max(1, opciones.semanasAnalisis);
+    // Calcular meses aproximados (1 mes = 4.345 semanas)
+    meses = Math.max(1, Math.round(semanas / 4.345));
+  } else if (opciones.mesesAnalisis !== undefined && opciones.mesesAnalisis !== null) {
+    // El usuario especificó meses exactos
+    meses = Math.max(1, opciones.mesesAnalisis);
+    // Calcular semanas aproximadas (1 mes = 4.345 semanas)
+    semanas = Math.max(1, Math.round(meses * 4.345));
+  } else if (fechaMin && fechaMax) {
+    // Si no hay opciones del usuario, calcular del rango de fechas del archivo
+    const dias = diasEntre(fechaMin, fechaMax);
+    semanas = Math.max(1, Math.round(dias / 7));
+    meses = Math.max(1, Math.round(dias / 30.44));
+  } else {
+    // Fallback: 1 mes por defecto
+    semanas = 4;
+    meses = 1;
+  }
+
+  // --- Calcular resultado por material ---
   const resultado = {};
   Object.values(porMaterial).forEach(m => {
     // Unidad "principal" = la que más filas tuvo (normalmente solo hay una)
@@ -75,12 +102,14 @@ export function procesarVentas(filas) {
     };
   });
 
-  const semanas = fechaMin && fechaMax ? Math.max(1, Math.round(diasEntre(fechaMin, fechaMax) / 7)) : 1;
-  const meses = fechaMin && fechaMax ? Math.max(1, Math.round(diasEntre(fechaMin, fechaMax) / 30.44)) : 1;
-
   return {
     porMaterial: resultado,
-    rangoFechas: { inicio: fechaMin, fin: fechaMax, semanas, meses }
+    rangoFechas: { 
+      inicio: fechaMin, 
+      fin: fechaMax, 
+      semanas: Math.round(semanas * 100) / 100, 
+      meses: Math.round(meses * 100) / 100 
+    }
   };
 }
 
