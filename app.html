@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KACOSA · Abastecimiento</title>
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <div class="overlay-sidebar" id="overlay-sidebar"></div>
+
+  <div class="app-layout">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="barra"></div>
+        <div>
+          <h1>KACOSA</h1>
+          <p>Abastecimiento</p>
+        </div>
+      </div>
+
+      <nav>
+        <button class="nav-item activo" data-vista="vista-dashboard">
+          <span class="icono">📊</span> Dashboard
+        </button>
+        <button class="nav-item" data-vista="vista-nuevo-analisis">
+          <span class="icono">📥</span> Nuevo Análisis
+        </button>
+        <button class="nav-item" data-vista="vista-alertas-kacosa">
+          <span class="icono">⚠️</span> Alertas Kacosa
+        </button>
+        <button class="nav-item" data-vista="vista-innovacion">
+          <span class="icono">💡</span> Materiales de Innovación
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="correo" id="usuario-actual">...</div>
+        <button class="btn-salir" id="btn-cerrar-sesion">Cerrar sesión</button>
+      </div>
+    </aside>
+
+    <!-- CONTENIDO -->
+    <div class="contenido">
+
+      <div class="header-movil">
+        <button id="btn-hamburguesa">☰</button>
+        <h2>KACOSA · Abastecimiento</h2>
+      </div>
+
+      <div class="vistas-wrap">
+
+        <!-- VISTA: DASHBOARD -->
+        <section class="vista activa" id="vista-dashboard">
+          <h2>Dashboard</h2>
+          <p class="vista-sub">Resumen del último análisis de tu tienda</p>
+          <div id="dashboard-contenido">
+            <p class="vista-sub">Cargando información...</p>
+          </div>
+        </section>
+
+        <!-- VISTA: NUEVO ANÁLISIS -->
+        <section class="vista" id="vista-nuevo-analisis">
+          <h2>Nuevo Análisis</h2>
+          <p class="vista-sub">Sube los 3 archivos para generar el requerimiento de abastecimiento</p>
+          <div id="nuevo-analisis-contenido">
+            <p class="vista-sub">(Próximamente)</p>
+          </div>
+        </section>
+
+        <!-- VISTA: ALERTAS KACOSA -->
+        <section class="vista" id="vista-alertas-kacosa">
+          <h2>Alertas Kacosa</h2>
+          <p class="vista-sub">Materiales de alta rotación con stock bajo o inexistente en casa matriz</p>
+          <div id="alertas-kacosa-contenido">
+            <p class="vista-sub">(Próximamente)</p>
+          </div>
+        </section>
+
+        <!-- VISTA: MATERIALES DE INNOVACIÓN -->
+        <section class="vista" id="vista-innovacion">
+          <h2>Materiales de Innovación</h2>
+          <p class="vista-sub">Registra productos solicitados por clientes que no tenemos en existencia</p>
+          <div id="innovacion-contenido">
+            <p class="vista-sub">(Próximamente)</p>
+          </div>
+        </section>
+
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/nav.js"></script>
+</body>
+</html>
