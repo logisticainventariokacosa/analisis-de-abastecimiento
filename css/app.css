@@ -208,3 +208,111 @@
   .header-movil { display: flex; }
   .vistas-wrap { padding: 18px; }
 }
+
+/* --- Chat flotante con el agente --- */
+#chat-boton-flotante {
+  position: fixed;
+  bottom: 22px;
+  right: 22px;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: var(--azul-base);
+  color: #fff;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(27,42,65,0.35);
+  z-index: 40;
+}
+#chat-boton-flotante:hover { background: var(--azul-base-alto); }
+
+#chat-panel {
+  position: fixed;
+  bottom: 90px;
+  right: 22px;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  height: 460px;
+  max-height: calc(100vh - 140px);
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  z-index: 40;
+  border: 1px solid var(--borde);
+}
+#chat-panel.oculto { display: none; }
+
+.chat-header {
+  background: var(--azul-base);
+  color: #fff;
+  padding: 12px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.chat-titulo { font-size: 13px; font-weight: 700; }
+.chat-subtitulo { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+.chat-header button {
+  background: none; border: none; color: #fff; font-size: 16px; cursor: pointer;
+}
+
+.chat-mensajes {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--fondo);
+}
+
+.chat-msg {
+  max-width: 85%;
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+.chat-msg-agente {
+  background: #fff;
+  border: 1px solid var(--borde);
+  align-self: flex-start;
+  color: var(--texto-principal);
+}
+.chat-msg-usuario {
+  background: var(--azul-base);
+  color: #fff;
+  align-self: flex-end;
+}
+.chat-cargando { color: var(--texto-secundario); font-style: italic; }
+
+.chat-form {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  border-top: 1px solid var(--borde);
+  background: #fff;
+}
+.chat-form input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 20px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+}
+.chat-form button {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--ambar);
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+}
+.chat-form button:hover { background: var(--ambar-oscuro); }
