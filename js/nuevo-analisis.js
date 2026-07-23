@@ -59,7 +59,7 @@ function render() {
       <label for="na-periodo">¿Para cuánto tiempo necesitas abastecerte?</label>
       <select id="na-periodo" style="width:100%; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif">
         <option value="semana">Una semana</option>
-        <option value="mes" selected>Un mes</option>
+        <option value="mes">Un mes</option>
         <option value="meses">Varios meses</option>
       </select>
 
@@ -117,24 +117,7 @@ async function ejecutarAnalisis() {
   try {
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
-    
-    // --- Calcular el período para el análisis ---
-    let mesesAnalisis = null;
-    let semanasAnalisis = null;
-    
-    if (periodo === "semana") {
-      semanasAnalisis = 1;
-    } else if (periodo === "mes") {
-      mesesAnalisis = 1;
-    } else if (periodo === "meses") {
-      mesesAnalisis = mesesCantidad || 1;
-    }
-    
-    // Procesar ventas con el período especificado
-    const ventasProcesadas = procesarVentas(filasVentas, {
-      mesesAnalisis,
-      semanasAnalisis
-    });
+    const ventasProcesadas = procesarVentas(filasVentas);
 
     estadoTexto.textContent = "Leyendo stock de la tienda...";
     const filasStockTienda = parsearMHT(await archivoStockTienda.text());
@@ -241,19 +224,19 @@ async function finalizarCalculo(gruposConfirmados) {
   const respAltaRotacion = await callBridge("leerAltaRotacion", {});
   const altaRotacion = respAltaRotacion.ok ? respAltaRotacion.materiales : [];
 
-  const { resultadoConAnexos } = anexarAltaRotacionFaltante(resultado, estado.stockTienda, estado.stockKacosa, altaRotacion);
+  const { resultadoConAnexos } = anexarAltaRotacionFaltante(
+    resultado, estado.stockTienda, estado.stockKacosa, altaRotacion,
+    resultado[0]?.periodoAnalizado || ""
+  );
   resultado = resultadoConAnexos;
 
   const sugerencias = generarSugerencias(resultado, estado.stockTienda, estado.stockKacosa, altaRotacion);
+  const sinRotacion = generarSinRotacion(estado.stockKacosa, estado.stockTienda, estado.ventasProcesadas);
 
   estado.resultadoFinal = resultado;
   estado.sugerencias = sugerencias;
-  
-  // Mostrar información del período en el mensaje
-  const mesesUsados = estado.ventasProcesadas.rangoFechas?.meses || '?';
-  const semanasUsadas = estado.ventasProcesadas.rangoFechas?.semanas || '?';
-  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsados} meses (${semanasUsadas} semanas).`;
-  
+  estado.sinRotacion = sinRotacion;
+  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados.`;
   mostrarResultados(resultado, sugerencias);
 
   // Deja el resultado disponible globalmente para el chat y otros módulos
@@ -262,8 +245,6 @@ async function finalizarCalculo(gruposConfirmados) {
     fechaAnalisis: estado.fechaAnalisis,
     periodo: estado.periodo,
     margenPct: estado.margenPct,
-    mesesUsados: estado.ventasProcesadas.rangoFechas?.meses,
-    semanasUsadas: estado.ventasProcesadas.rangoFechas?.semanas,
     materiales: resultado,
     sugerencias
   };
@@ -278,7 +259,7 @@ async function finalizarCalculo(gruposConfirmados) {
  * - NO tienen stock en la tienda
  * Se agregan por la cantidad mínima de empaque.
  */
-function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRotacion) {
+function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRotacion, periodoAnalizado) {
   const codigosEnResultado = new Set(resultado.map(m => m.codigo));
   const anexados = [];
 
@@ -292,7 +273,7 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
 
     const infoTienda = stockTienda[codigo];
     const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
-    if (stockTiendaDisp > 0) return;
+    if (stockTiendaDisp > 0) return; // sí hay en tienda, no hace falta anexarlo forzado
 
     const empaque = Number(m.empaque) || 1;
     const aPedir = Math.min(empaque, stockKacosaDisp);
@@ -300,12 +281,15 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
     resultado.push({
       codigo,
       descripcion: m.descripcion,
-      clase: m.clase || "D",
+      clase: m.clase,
       ventasPeriodo: 0,
       stockTienda: stockTiendaDisp,
       stockKacosa: stockKacosaDisp,
       aPedir,
-      empaque
+      aPedirIdeal: aPedir,
+      pendiente: 0,
+      empaque,
+      periodoAnalizado
     });
     anexados.push(codigo);
   });
@@ -338,33 +322,64 @@ function generarSugerencias(resultado, stockTienda, stockKacosa, altaRotacion) {
   }));
 }
 
+/**
+ * Materiales con stock disponible en la TIENDA que NO tuvieron NINGÚN
+ * movimiento de venta/devolución en todo el periodo analizado — para
+ * control de mercancía sin rotación (dinero parado en el estante).
+ */
+function generarSinRotacion(stockKacosa, stockTienda, ventasProcesadas) {
+  const codigosConMovimiento = new Set(Object.keys(ventasProcesadas.porMaterial));
+
+  return Object.values(stockTienda).filter(m => {
+    if (m.stockDisponible <= 0) return false;
+    if (codigosConMovimiento.has(m.codigo)) return false;
+    return true;
+  }).map(m => {
+    const infoKacosa = stockKacosa[m.codigo];
+    return {
+      codigo: m.codigo,
+      descripcion: m.descripcion,
+      unidadBase: m.unidadBase,
+      stockTienda: m.stockDisponible,
+      stockKacosa: infoKacosa ? infoKacosa.stockDisponible : 0
+    };
+  });
+}
+
+function clasificarEnCuatroGrupos(resultado, sugerencias) {
+  const pedido = resultado.filter(m => m.aPedir > 0);
+  const noPedido = resultado.filter(m => m.aPedirIdeal === 0);
+  const pendienteStock = resultado.filter(m => m.pendiente > 0);
+  return { pedido, noPedido, pendienteStock, sugerencias };
+}
+
 function mostrarResultados(resultado, sugerencias) {
   const cont = document.getElementById("na-resultados");
+  const grupos = clasificarEnCuatroGrupos(resultado, sugerencias);
+  estado.grupos = grupos;
 
-  const totalAPedir = resultado.reduce((acc, m) => acc + m.aPedir, 0);
-  const quiebres = resultado.filter(m => m.stockKacosa <= 0 && m.aPedir === 0).length;
+  const totalAPedir = grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   resultado.forEach(m => porClase[m.clase]++);
 
-  const ordenado = resultado.slice().sort((a, b) => b.aPedir - a.aPedir);
-
-  const infoPeriodo = window.KACOSA.ultimoAnalisis;
-  const textoPeriodo = infoPeriodo 
-    ? `Período usado: ${infoPeriodo.mesesUsados || '?'} meses (${infoPeriodo.semanasUsadas || '?'} semanas)`
-    : '';
+  const ordenado = grupos.pedido.slice().sort((a, b) => b.aPedir - a.aPedir);
 
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">3. Resultado</h3>
-      <p class="vista-sub" style="margin-top:-4px">${textoPeriodo}</p>
+      <p class="vista-sub" style="margin-top:0">Periodo de movimientos analizado: <strong>${resultado[0]?.periodoAnalizado || "—"}</strong></p>
       <div class="kpi-grid">
         <div class="kpi-card verde">
-          <div class="label">Total a pedir</div>
+          <div class="label">Materiales a pedir</div>
+          <div class="valor">${grupos.pedido.length}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Total unidades a pedir</div>
           <div class="valor">${totalAPedir}</div>
         </div>
         <div class="kpi-card rojo">
-          <div class="label">Sin stock en Kacosa</div>
-          <div class="valor">${quiebres}</div>
+          <div class="label">Pendiente por falta de stock</div>
+          <div class="valor">${grupos.pendienteStock.length}</div>
         </div>
         <div class="kpi-card">
           <div class="label">Clase A / B / C / D</div>
@@ -400,14 +415,16 @@ function mostrarResultados(resultado, sugerencias) {
         </table>
       </div>
 
-      ${sugerencias.length > 0 ? `
-        <p class="vista-sub" style="margin-top:16px">
-          <strong>${sugerencias.length}</strong> material(es) con disponibilidad en Kacosa que no están en tu pedido ni en tu tienda (ver reporte de sugerencias al descargar).
-        </p>
-      ` : ""}
+      <p class="vista-sub" style="margin-top:16px">
+        Los 5 archivos descargables incluyen: (1) ${grupos.pedido.length} material(es) a pedir,
+        (2) ${grupos.noPedido.length} que no ameritaron pedido,
+        (3) ${grupos.pendienteStock.length} con pedido pendiente por falta de stock en Kacosa,
+        (4) ${grupos.sugerencias.length} sugerencia(s),
+        (5) ${(estado.sinRotacion || []).length} sin rotación en tienda.
+      </p>
 
       <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px">
-        <button id="btn-descargar-excel" class="btn-primario" style="max-width:220px">Descargar Excel</button>
+        <button id="btn-descargar-excel" class="btn-primario" style="max-width:220px">Descargar los 5 Excel</button>
         <button id="btn-guardar-analisis" class="btn-google" style="max-width:220px; margin-top:0">Guardar análisis</button>
         <button id="btn-enviar-correo" class="btn-google" style="max-width:220px; margin-top:0">Enviar por correo</button>
       </div>
@@ -420,52 +437,74 @@ function mostrarResultados(resultado, sugerencias) {
   document.getElementById("btn-enviar-correo").addEventListener("click", enviarCorreo);
 }
 
-/* ============ Excel (SheetJS) ============ */
+/* ============ Excel (SheetJS) — 4 archivos ============ */
 
-function crearWorkbookAPedir(materiales) {
-  const filas = materiales.map(m => ({
+function filasBase(materiales) {
+  return materiales.map(m => ({
     Codigo: m.codigo,
     Descripcion: m.descripcion,
     Clase: m.clase,
     Ventas_Periodo: m.ventasPeriodo,
     Stock_Tienda: m.stockTienda,
     Stock_Kacosa: m.stockKacosa,
-    A_Pedir: m.aPedir
+    A_Pedir: m.aPedir,
+    Periodo_Analizado: m.periodoAnalizado
   }));
+}
+
+function crearWorkbook(filas, nombreHoja) {
   const ws = XLSX.utils.json_to_sheet(filas);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "A_Pedir");
+  XLSX.utils.book_append_sheet(wb, ws, nombreHoja);
   return wb;
 }
 
-function crearWorkbookSugerencias(sugerencias) {
-  const filas = sugerencias.map(s => ({
-    Material: s.codigo,
-    Texto_Breve: s.descripcion,
-    Unidad_Medida_Base: s.unidadBase,
-    Stock_Kacosa: s.stockKacosa
-  }));
-  const ws = XLSX.utils.json_to_sheet(filas);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Sugerencias");
-  return wb;
-}
+function construirArchivos() {
+  const { pedido, noPedido, pendienteStock, sugerencias } = estado.grupos;
+  const base = `${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}`;
 
-function nombreArchivoAPedir() {
-  return `Abastecimiento_${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}.xlsx`;
-}
-function nombreArchivoSugerencias() {
-  return `Sugerencias_${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}.xlsx`;
+  const archivos = [
+    { nombre: `1_A_Pedir_${base}.xlsx`, wb: crearWorkbook(filasBase(pedido), "A_Pedir") },
+    { nombre: `2_No_Amerito_Pedido_${base}.xlsx`, wb: crearWorkbook(filasBase(noPedido), "No_Amerito_Pedido") },
+    {
+      nombre: `3_Pendiente_Por_Stock_Kacosa_${base}.xlsx`,
+      wb: crearWorkbook(pendienteStock.map(m => ({
+        Codigo: m.codigo,
+        Descripcion: m.descripcion,
+        Clase: m.clase,
+        A_Pedir_Ideal: m.aPedirIdeal,
+        A_Pedir_Real: m.aPedir,
+        Pendiente: m.pendiente,
+        Stock_Kacosa: m.stockKacosa,
+        Periodo_Analizado: m.periodoAnalizado
+      })), "Pendiente_Stock_Kacosa")
+    },
+    {
+      nombre: `4_Sugerencias_${base}.xlsx`,
+      wb: crearWorkbook(sugerencias.map(s => ({
+        Material: s.codigo,
+        Texto_Breve: s.descripcion,
+        Unidad_Medida_Base: s.unidadBase,
+        Stock_Kacosa: s.stockKacosa
+      })), "Sugerencias")
+    },
+    {
+      nombre: `5_Sin_Rotacion_En_Tienda_${base}.xlsx`,
+      wb: crearWorkbook((estado.sinRotacion || []).map(s => ({
+        Material: s.codigo,
+        Texto_Breve: s.descripcion,
+        Unidad_Medida_Base: s.unidadBase,
+        Stock_Tienda: s.stockTienda,
+        Stock_Kacosa: s.stockKacosa
+      })), "Sin_Rotacion")
+    }
+  ];
+
+  return archivos;
 }
 
 function descargarExcel() {
-  const wbPedido = crearWorkbookAPedir(estado.resultadoFinal);
-  XLSX.writeFile(wbPedido, nombreArchivoAPedir());
-
-  if (estado.sugerencias && estado.sugerencias.length > 0) {
-    const wbSugerencias = crearWorkbookSugerencias(estado.sugerencias);
-    XLSX.writeFile(wbSugerencias, nombreArchivoSugerencias());
-  }
+  construirArchivos().forEach(a => XLSX.writeFile(a.wb, a.nombre));
 }
 
 /* ============ Guardar en Google Sheets ============ */
@@ -485,35 +524,29 @@ async function guardarAnalisisEnSheets() {
     : "Error al guardar: " + resp.error;
 }
 
-/* ============ Enviar por correo ============ */
+/* ============ Enviar por correo (4 adjuntos) ============ */
 
 async function enviarCorreo() {
   const estadoAcciones = document.getElementById("na-estado-acciones");
-  estadoAcciones.textContent = "Preparando archivos...";
+  estadoAcciones.textContent = "Preparando los 4 archivos...";
 
-  const wbPedido = crearWorkbookAPedir(estado.resultadoFinal);
-  const fileBase64 = XLSX.write(wbPedido, { type: "base64", bookType: "xlsx" });
+  const archivos = construirArchivos().map(a => ({
+    nombre: a.nombre,
+    base64: XLSX.write(a.wb, { type: "base64", bookType: "xlsx" })
+  }));
 
-  let sugerenciasBase64 = null;
-  let sugerenciasFileName = null;
-  if (estado.sugerencias && estado.sugerencias.length > 0) {
-    const wbSugerencias = crearWorkbookSugerencias(estado.sugerencias);
-    sugerenciasBase64 = XLSX.write(wbSugerencias, { type: "base64", bookType: "xlsx" });
-    sugerenciasFileName = nombreArchivoSugerencias();
-  }
-
-  const totalAPedir = estado.resultadoFinal.reduce((acc, m) => acc + m.aPedir, 0);
-  const quiebres = estado.resultadoFinal.filter(m => m.stockKacosa <= 0 && m.aPedir === 0).length;
+  const totalAPedir = estado.grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
 
   estadoAcciones.textContent = "Enviando correo...";
   const resp = await callBridge("sendReport", {
     tienda: estado.tiendaSeleccionada,
     fechaAnalisis: estado.fechaAnalisis,
-    resumen: { totalAPedir, valorEstimado: totalAPedir, quiebresKacosa: quiebres },
-    fileBase64,
-    fileName: nombreArchivoAPedir(),
-    sugerenciasBase64,
-    sugerenciasFileName
+    resumen: {
+      totalAPedir,
+      valorEstimado: totalAPedir,
+      quiebresKacosa: estado.grupos.pendienteStock.length
+    },
+    archivos
   });
 
   estadoAcciones.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
