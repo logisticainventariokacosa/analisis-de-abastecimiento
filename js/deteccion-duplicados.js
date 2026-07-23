@@ -11,6 +11,12 @@ function normalizar(texto) {
     .trim();
 }
 
+/** Extrae todos los números de un texto, en orden, unidos como firma (ej. "370-440V CBB65-R" -> "370|440|65"). */
+function firmaNumerica(texto) {
+  const numeros = String(texto).match(/\d+([.,]\d+)?/g) || [];
+  return numeros.join("|");
+}
+
 /** Similitud por coeficiente de Dice sobre bigramas de caracteres (rápido y suficiente para descripciones cortas). */
 function similitud(a, b) {
   if (a === b) return 1;
@@ -30,7 +36,7 @@ function similitud(a, b) {
   return (2 * interseccion) / (setA.size + setB.size);
 }
 
-const UMBRAL_SIMILITUD = 0.72;
+const UMBRAL_SIMILITUD = 0.75;
 
 /**
  * Detecta grupos de materiales candidatos a ser duplicados, comparando solo
@@ -42,7 +48,8 @@ const UMBRAL_SIMILITUD = 0.72;
 export function detectarCandidatosLocal(materiales) {
   const normalizados = materiales.map(m => ({
     ...m,
-    norm: normalizar(m.descripcion)
+    norm: normalizar(m.descripcion),
+    firma: firmaNumerica(m.descripcion)
   }));
 
   // Cubetas por primera palabra para no comparar todo contra todo
@@ -64,6 +71,10 @@ export function detectarCandidatosLocal(materiales) {
     for (let i = 0; i < grupo.length; i++) {
       for (let j = i + 1; j < grupo.length; j++) {
         if (grupo[i].codigo === grupo[j].codigo) continue;
+        // Guardia numérica: si los números de la descripción difieren (ej. "40mfd" vs "50mfd",
+        // o "110V" vs "220V"), NUNCA se consideran duplicados, sin importar qué tan parecido
+        // sea el resto del texto. Esto evita fusionar variantes distintas de un mismo producto.
+        if (grupo[i].firma !== grupo[j].firma) continue;
         if (similitud(grupo[i].norm, grupo[j].norm) >= UMBRAL_SIMILITUD) {
           unir(grupo[i].codigo, grupo[j].codigo);
         }
@@ -93,7 +104,7 @@ export async function confirmarConGemini(clusters) {
   }
 
   // Aplanamos y limitamos para no exceder un prompt razonable
-  const materialesPlanos = clusters.flat().slice(0, 150)
+  const materialesPlanos = clusters.flat().slice(0, 300)
     .map(m => ({ codigo: m.codigo, descripcion: m.descripcion }));
 
   return await callBridge("resolveDuplicates", { materiales: materialesPlanos });
