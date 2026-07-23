@@ -50,9 +50,17 @@ function alternarPanel(mostrar) {
 function actualizarContextoInfo() {
   const info = document.getElementById("chat-contexto-info");
   const analisis = window.KACOSA?.ultimoAnalisis;
-  info.textContent = analisis
-    ? `${nombrePorId(analisis.tienda)} · ${analisis.fechaAnalisis}`
-    : "Sin análisis cargado aún";
+  const misTiendas = window.KACOSA?.tiendas || [];
+
+  if (analisis) {
+    info.textContent = `${nombrePorId(analisis.tienda)} · ${analisis.fechaAnalisis}`;
+  } else if (misTiendas.includes("TODAS")) {
+    info.textContent = "Acceso a todas las tiendas";
+  } else if (misTiendas.length > 0) {
+    info.textContent = `Acceso: ${misTiendas.map(id => nombrePorId(id)).join(", ")}`;
+  } else {
+    info.textContent = "Sin análisis cargado aún";
+  }
 }
 
 function agregarMensaje(texto, rol) {
@@ -82,8 +90,14 @@ async function enviarPregunta(e) {
   cont.scrollTop = cont.scrollHeight;
 
   const analisis = window.KACOSA?.ultimoAnalisis;
+  const misTiendas = window.KACOSA?.tiendas || [];
+  const tiendasUsuario = misTiendas.includes("TODAS")
+    ? "TODAS (acceso administrativo a las 12 tiendas)"
+    : misTiendas.map(id => nombrePorId(id)).join(", ");
+
   const contexto = analisis ? {
     tienda: nombrePorId(analisis.tienda),
+    tiendasUsuario,
     fechaAnalisis: analisis.fechaAnalisis,
     periodo: analisis.periodo,
     margenPct: analisis.margenPct,
@@ -92,7 +106,7 @@ async function enviarPregunta(e) {
       quiebresKacosa: analisis.materiales.filter(m => m.stockKacosa <= 0 && m.aPedir === 0).length
     },
     materiales: analisis.materiales
-  } : {};
+  } : { tiendasUsuario };
 
   const resp = await callBridge("chatConsulta", {
     pregunta,
@@ -108,6 +122,7 @@ async function enviarPregunta(e) {
 }
 
 document.addEventListener("kacosa:analisis-listo", actualizarContextoInfo);
+document.addEventListener("kacosa:usuario-listo", actualizarContextoInfo);
 document.addEventListener("DOMContentLoaded", construirUI);
 // Por si el script carga después de DOMContentLoaded
 if (document.readyState !== "loading") construirUI();
