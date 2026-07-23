@@ -448,7 +448,8 @@ function filasBase(materiales) {
     Stock_Tienda: m.stockTienda,
     Stock_Kacosa: m.stockKacosa,
     A_Pedir: m.aPedir,
-    Periodo_Analizado: m.periodoAnalizado
+    Periodo_Analizado: m.periodoAnalizado,
+    Periodo_de_abastecimiento: m.periodoAbastecimiento
   }));
 }
 
@@ -476,7 +477,8 @@ function construirArchivos() {
         A_Pedir_Real: m.aPedir,
         Pendiente: m.pendiente,
         Stock_Kacosa: m.stockKacosa,
-        Periodo_Analizado: m.periodoAnalizado
+        Periodo_Analizado: m.periodoAnalizado,
+        Periodo_de_abastecimiento: m.periodoAbastecimiento
       })), "Pendiente_Stock_Kacosa")
     },
     {
