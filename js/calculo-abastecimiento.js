@@ -37,6 +37,19 @@ export function calcularAbastecimiento({ ventasProcesadas, stockTienda, stockKac
   const { porMaterial, rangoFechas } = ventasProcesadas;
   const modoClasificacion = periodo === "semana" ? "semanal" : "mensual";
 
+  // Periodo_Analizado: solo en la unidad correspondiente al periodo elegido, con 1 decimal
+  const redondear1 = (n) => Math.round(n * 10) / 10;
+  const periodoAnalizado = modoClasificacion === "semanal"
+    ? `${redondear1(rangoFechas.semanas)} semana(s)`
+    : `${redondear1(rangoFechas.meses)} mes(es)`;
+
+  // Periodo_de_abastecimiento: para cuánto alcanza el "a pedir" (lo que eligió el usuario)
+  const periodoAbastecimiento = periodo === "semana"
+    ? "1 semana"
+    : periodo === "mes"
+    ? "1 mes"
+    : `${mesesCantidad || 1} mes(es)`;
+
   const resultado = [];
 
   Object.values(porMaterial).forEach(v => {
@@ -58,36 +71,48 @@ export function calcularAbastecimiento({ ventasProcesadas, stockTienda, stockKac
     // --- Margen de seguridad ---
     const demandaConMargen = demandaPeriodo * (1 + (margenPct || 0) / 100);
 
-    // --- Resta el stock disponible en tienda ---
+    // --- Resta el stock disponible en tienda (sin tope de Kacosa todavía) ---
     const infoTienda = stockTienda[v.codigo];
     const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
     const aPedirBruto = Math.max(0, demandaConMargen - stockTiendaDisp);
 
-    // --- Tope por stock disponible en Kacosa ---
+    const empaque = obtenerEmpaque(v.codigo);
     const infoKacosa = stockKacosa[v.codigo];
     const stockKacosaDisp = infoKacosa ? infoKacosa.stockDisponible : 0;
-    const aPedirTopado = Math.min(aPedirBruto, stockKacosaDisp);
 
-    // --- Redondeo a unidades enteras y luego a múltiplo del paquete ---
+    // --- "Ideal": lo que se pediría si Kacosa tuviera stock ilimitado ---
+    const aPedirIdealEnteros = Math.ceil(aPedirBruto);
+    const aPedirIdeal = (empaque > 1 && aPedirIdealEnteros > 0)
+      ? Math.ceil(aPedirIdealEnteros / empaque) * empaque
+      : aPedirIdealEnteros;
+
+    // --- Tope real por stock disponible en Kacosa ---
+    const aPedirTopado = Math.min(aPedirBruto, stockKacosaDisp);
     const aPedirEnteros = Math.ceil(aPedirTopado);
-    const empaque = obtenerEmpaque(v.codigo);
 
     let aPedirFinal = aPedirEnteros;
     if (empaque > 1 && aPedirEnteros > 0) {
       const candidatoRedondeado = Math.ceil(aPedirEnteros / empaque) * empaque;
-      // Solo redondeamos hacia arriba si Kacosa realmente tiene esa cantidad disponible
       aPedirFinal = candidatoRedondeado <= stockKacosaDisp ? candidatoRedondeado : aPedirEnteros;
     }
+
+    const pendiente = Math.max(0, aPedirIdeal - aPedirFinal);
 
     resultado.push({
       codigo: v.codigo,
       descripcion: v.descripcion,
       clase,
-      ventasPeriodo: v.ventaNetaUnidadVenta,
+      // Ventas_Periodo ahora muestra el promedio ya dividido según la unidad elegida
+      // (mismo valor usado para la clasificación ABCD), no el total crudo del periodo completo.
+      ventasPeriodo: Math.round(tasaClasificacion * 100) / 100,
       stockTienda: stockTiendaDisp,
       stockKacosa: stockKacosaDisp,
       aPedir: aPedirFinal,
-      empaque
+      aPedirIdeal,
+      pendiente,
+      empaque,
+      periodoAnalizado,
+      periodoAbastecimiento
     });
   });
 
