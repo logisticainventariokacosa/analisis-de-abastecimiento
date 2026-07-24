@@ -10,6 +10,53 @@ import { callBridge } from "./bridge.js";
 
 const CENTROS_KACOSA = ["1000", "3000"];
 
+/**
+ * Valida que cada archivo tenga el/los centro(s) correctos:
+ * - Ventas: un único centro, igual al de la tienda seleccionada.
+ * - Stock tienda: un único centro, igual al de la tienda seleccionada.
+ * - Stock Kacosa: solo centros 1000 y/o 3000, ningún otro.
+ * Devuelve un string con el mensaje de error, o null si todo está correcto.
+ */
+function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroTienda) {
+  const extraerCentros = (filas) =>
+    new Set(filas.map(f => String(f["Centro"] || "").trim()).filter(Boolean));
+
+  const centrosVentas = extraerCentros(filasVentas);
+  if (centrosVentas.size === 0) {
+    return "El archivo de ventas no tiene datos de Centro reconocibles.";
+  }
+  if (centrosVentas.size > 1) {
+    return `El archivo de ventas contiene más de un centro (${[...centrosVentas].join(", ")}). Debe contener un único centro, el de la tienda seleccionada.`;
+  }
+  const centroVentasDetectado = [...centrosVentas][0];
+  if (centroVentasDetectado !== centroTienda) {
+    return `El archivo de ventas corresponde al centro ${centroVentasDetectado}, pero seleccionaste una tienda con centro ${centroTienda}. Verifica que subiste el archivo correcto.`;
+  }
+
+  const centrosStockTienda = extraerCentros(filasStockTienda);
+  if (centrosStockTienda.size === 0) {
+    return "El archivo de stock de la tienda no tiene datos de Centro reconocibles.";
+  }
+  if (centrosStockTienda.size > 1) {
+    return `El archivo de stock de la tienda contiene más de un centro (${[...centrosStockTienda].join(", ")}). Debe contener un único centro.`;
+  }
+  const centroStockDetectado = [...centrosStockTienda][0];
+  if (centroStockDetectado !== centroTienda) {
+    return `El archivo de stock de tienda corresponde al centro ${centroStockDetectado}, pero seleccionaste una tienda con centro ${centroTienda}. Verifica que subiste el archivo correcto.`;
+  }
+
+  const centrosStockKacosa = extraerCentros(filasStockKacosa);
+  if (centrosStockKacosa.size === 0) {
+    return "El archivo de stock de Kacosa no tiene datos de Centro reconocibles.";
+  }
+  const centrosInvalidos = [...centrosStockKacosa].filter(c => !CENTROS_KACOSA.includes(c));
+  if (centrosInvalidos.length > 0) {
+    return `El archivo de stock de Kacosa contiene centro(s) que no pertenecen a Kacosa (${centrosInvalidos.join(", ")}). Kacosa solo puede ser 1000 y/o 3000.`;
+  }
+
+  return null; // todo válido
+}
+
 // Estado interno de la vista (se reinicia cada vez que se entra a analizar)
 let estado = {
   ventasProcesadas: null,
@@ -219,30 +266,22 @@ async function ejecutarAnalisis() {
   try {
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
-    
-    // Calcular el período para el análisis
-    let mesesAnalisis = null;
-    let semanasAnalisis = null;
-    
-    if (periodo === "semana") {
-      semanasAnalisis = 1;
-    } else if (periodo === "mes") {
-      mesesAnalisis = 1;
-    } else if (periodo === "meses") {
-      mesesAnalisis = mesesCantidad || 1;
-    }
-    
-    const ventasProcesadas = procesarVentas(filasVentas, {
-      mesesAnalisis,
-      semanasAnalisis
-    });
 
     estadoTexto.textContent = "Leyendo stock de la tienda...";
     const filasStockTienda = parsearMHT(await archivoStockTienda.text());
-    const stockTienda = agruparStock(filasStockTienda, [centroTienda]);
 
     estadoTexto.textContent = "Leyendo stock de Kacosa...";
     const filasStockKacosa = parsearMHT(await archivoStockKacosa.text());
+
+    estadoTexto.textContent = "Validando centros de los archivos...";
+    const errorValidacion = validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroTienda);
+    if (errorValidacion) {
+      estadoTexto.textContent = "⚠️ " + errorValidacion;
+      return;
+    }
+
+    const ventasProcesadas = procesarVentas(filasVentas);
+    const stockTienda = agruparStock(filasStockTienda, [centroTienda]);
     const stockKacosa = agruparStock(filasStockKacosa, CENTROS_KACOSA);
 
     estadoTexto.textContent = "Cargando lista de paquetes...";
