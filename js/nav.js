@@ -20,12 +20,20 @@ protegerPagina();
 // Espera a que se confirme la sesión para cargar los datos del usuario (tiendas permitidas)
 onAuthStateChanged(auth, async (user) => {
   if (!user) return; // protegerPagina() ya se encarga de redirigir al login
-  window.KACOSA.usuario = user;
 
   const ref = doc(db, "usuarios_autorizados", user.email.toLowerCase());
   const snap = await getDoc(ref);
   const datos = snap.exists() ? snap.data() : {};
   const tiendas = datos.tiendas || [];
+  const nombre = datos.nombre || user.displayName || user.email || "";
+
+  window.KACOSA.usuario = {
+    email: user.email,
+    nombre: nombre,
+    displayName: nombre,
+    ...user
+  };
+  
   window.KACOSA.tiendas = tiendas;
   window.KACOSA.tiendaActiva = tiendas.includes("TODAS") ? null : tiendas[0] || null;
 
