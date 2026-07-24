@@ -71,7 +71,12 @@ function render() {
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">Materiales registrados</h3>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
+        <h3 style="margin:0; font-size:15px; color:var(--azul-base)">Materiales registrados</h3>
+        <button id="btn-descargar-innovacion-excel" class="btn-secundario" style="padding:8px 16px; font-size:12px; margin:0">
+          📥 Descargar Excel
+        </button>
+      </div>
       <div id="lista-innovacion"><p class="vista-sub">Cargando...</p></div>
     </div>
   `;
@@ -119,6 +124,7 @@ function render() {
 
   document.getElementById("inn-fecha").valueAsDate = new Date();
   document.getElementById("form-innovacion").addEventListener("submit", registrarMaterial);
+  document.getElementById("btn-descargar-innovacion-excel").addEventListener("click", descargarExcel);
 
   cargarLista();
 }
@@ -155,17 +161,15 @@ async function registrarMaterial(e) {
     estado.textContent = "Enviando...";
     const usuario = window.KACOSA?.usuario?.email || "";
     
-    // Obtener el nombre de usuario desde Firebase (displayName)
-    let nombreUsuario = window.KACOSA?.usuario?.displayName || "";
-    // Si no tiene displayName, usar el email
-    if (!nombreUsuario) nombreUsuario = usuario;
+    // Obtener el nombre de usuario desde Firestore (campo "nombre")
+    const nombreUsuario = window.KACOSA?.usuario?.nombre || window.KACOSA?.usuario?.displayName || usuario;
 
     const resp = await callBridge("agregarMaterialInnovacion", {
       tienda, 
       descripcion, 
       fechaSolicitud, 
       usuario,
-      nombreUsuario,  // <--- NUEVO CAMPO
+      nombreUsuario,
       imagenBase64, 
       imagenNombre
     });
@@ -260,6 +264,38 @@ async function cargarLista() {
   });
 }
 
+/**
+ * Convierte una URL de Google Drive a formato de vista previa directa
+ * Ej: https://drive.google.com/file/d/ID/view -> https://drive.google.com/uc?export=view&id=ID
+ */
+function getDrivePreviewUrl(url) {
+  if (!url) return null;
+  
+  // Si ya es una URL de vista previa de Google Drive
+  if (url.includes("drive.google.com/uc")) return url;
+  
+  // Si es una URL de Drive con parámetros
+  if (url.includes("drive.google.com")) {
+    // Intentar extraer el ID del archivo
+    // Formato 1: /file/d/ID/view
+    let match = url.match(/\/file\/d\/([^\/]+)/);
+    // Formato 2: ?id=ID
+    if (!match) match = url.match(/[?&]id=([^&]+)/);
+    // Formato 3: /d/ID/view
+    if (!match) match = url.match(/\/d\/([^\/]+)/);
+    
+    if (match && match[1]) {
+      // Usar el endpoint de exportación directa de Google Drive
+      return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+    }
+    
+    // Si no se pudo extraer el ID, devolver la URL original con parámetro de vista
+    return url.includes("?") ? url + "&usp=drivesdk" : url + "?usp=drivesdk";
+  }
+  
+  return url;
+}
+
 function abrirModal(idx) {
   const m = materialesCache[idx];
   const modal = document.getElementById("modal-innovacion");
@@ -267,22 +303,7 @@ function abrirModal(idx) {
   const esPendiente = m.estado === "Pendiente";
   const nuevoEstado = esPendiente ? "Procesado" : "Pendiente";
 
-  // Función para generar la URL de vista previa de Drive
-  function getDrivePreviewUrl(url) {
-    if (!url) return null;
-    // Si es URL de Drive, convertir a vista previa
-    if (url.includes("drive.google.com")) {
-      // Extraer el ID del archivo
-      const match = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^\/]+)/);
-      if (match) {
-        return `https://drive.google.com/uc?export=view&id=${match[1]}`;
-      }
-      // Si no se pudo extraer el ID, usar la URL original con parámetro de vista
-      return url.includes("?") ? url + "&usp=drivesdk" : url + "?usp=drivesdk";
-    }
-    return url;
-  }
-
+  // Obtener la URL de vista previa de la imagen
   const imagenPreview = m.imagenUrl ? getDrivePreviewUrl(m.imagenUrl) : null;
 
   modal.innerHTML = `
@@ -318,15 +339,18 @@ function abrirModal(idx) {
     </div>
   `;
 
-  // Agregar estilos para la animación
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes fadeIn {
-      from { opacity: 0; transform: scale(0.95); }
-      to { opacity: 1; transform: scale(1); }
-    }
-  `;
-  document.head.appendChild(style);
+  // Agregar estilos para la animación si no existen
+  if (!document.getElementById("innovacion-modal-styles")) {
+    const style = document.createElement('style');
+    style.id = "innovacion-modal-styles";
+    style.textContent = `
+      @keyframes fadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModal);
   document.getElementById("overlay-modal-innovacion").addEventListener("click", (e) => {
@@ -353,6 +377,33 @@ async function cambiarEstado(id, nuevoEstado) {
 
   cerrarModal();
   cargarLista();
+}
+
+/* =========================================================
+ *  EXCEL - Descargar materiales de innovación
+ * ========================================================= */
+function descargarExcel() {
+  if (!materialesCache || materialesCache.length === 0) {
+    alert("No hay materiales para descargar.");
+    return;
+  }
+
+  const datos = materialesCache.map(m => ({
+    Tienda: nombrePorId(m.tienda),
+    Descripcion: m.descripcion,
+    Fecha_Solicitud: formatearFecha(m.fechaSolicitud),
+    Estado: m.estado,
+    Usuario: m.usuario || "",
+    Nombre_Usuario: m.nombreUsuario || m.usuario || "",
+    Imagen_URL: m.imagenUrl || ""
+  }));
+
+  const ws = XLSX.utils.json_to_sheet(datos);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Innovacion");
+
+  const nombreArchivo = `Materiales_Innovacion_${new Date().toISOString().slice(0,10)}.xlsx`;
+  XLSX.writeFile(wb, nombreArchivo);
 }
 
 function formatearFecha(valor) {
