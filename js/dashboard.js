@@ -29,11 +29,14 @@ async function render() {
 
   cont.innerHTML = `
     ${tieneVariasTiendas ? `
-      <div class="card" style="margin-bottom:16px">
-        <label for="dash-tienda" style="margin-top:0">Tienda</label>
-        <select id="dash-tienda" style="width:100%; max-width:320px; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif">
+      <div class="tienda-selector">
+        <span class="label">🏷️ Tienda</span>
+        <select id="dash-tienda">
           ${opcionesTienda}
         </select>
+        <span style="font-size:12px; color:var(--texto-claro); margin-left:auto;">
+          Último análisis
+        </span>
       </div>
     ` : ""}
     <div id="dash-resultado"><p class="vista-sub">Cargando último análisis...</p></div>
@@ -98,23 +101,23 @@ async function cargarAnalisis() {
     </div>
     <div class="card">
       <h3 style="margin-top:0; font-size:14px; color:var(--azul-base)">Top 50 materiales a pedir</h3>
-      <div style="overflow-x:auto">
-        <table style="width:100%; border-collapse:collapse; font-size:13px">
+      <div class="table-responsive">
+        <table>
           <thead>
-            <tr style="text-align:left; border-bottom:2px solid var(--borde)">
-              <th style="padding:8px 6px">Código</th>
-              <th style="padding:8px 6px">Descripción</th>
-              <th style="padding:8px 6px">Clase</th>
-              <th style="padding:8px 6px">A pedir</th>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Clase</th>
+              <th>A pedir</th>
             </tr>
           </thead>
           <tbody>
             ${ordenado.map(m => `
-              <tr style="border-bottom:1px solid var(--borde)">
-                <td style="padding:8px 6px">${m.codigo}</td>
-                <td style="padding:8px 6px">${m.descripcion}</td>
-                <td style="padding:8px 6px; font-weight:700">${m.clase}</td>
-                <td style="padding:8px 6px; font-weight:700; color:var(--azul-base)">${m.aPedir}</td>
+              <tr>
+                <td>${m.codigo}</td>
+                <td>${m.descripcion}</td>
+                <td><span class="clase-badge clase-${m.clase.toLowerCase()}">${m.clase}</span></td>
+                <td><strong>${m.aPedir}</strong></td>
               </tr>
             `).join("")}
           </tbody>
