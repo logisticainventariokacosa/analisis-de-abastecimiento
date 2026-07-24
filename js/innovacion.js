@@ -154,10 +154,20 @@ async function registrarMaterial(e) {
 
     estado.textContent = "Enviando...";
     const usuario = window.KACOSA?.usuario?.email || "";
+    
+    // Obtener el nombre de usuario desde Firebase (displayName)
+    let nombreUsuario = window.KACOSA?.usuario?.displayName || "";
+    // Si no tiene displayName, usar el email
+    if (!nombreUsuario) nombreUsuario = usuario;
 
     const resp = await callBridge("agregarMaterialInnovacion", {
-      tienda, descripcion, fechaSolicitud, usuario,
-      imagenBase64, imagenNombre
+      tienda, 
+      descripcion, 
+      fechaSolicitud, 
+      usuario,
+      nombreUsuario,  // <--- NUEVO CAMPO
+      imagenBase64, 
+      imagenNombre
     });
 
     if (!resp.ok) {
@@ -184,8 +194,7 @@ async function registrarMaterial(e) {
   }
 }
 
-/** Redimensiona y comprime una imagen en el navegador antes de convertirla a base64,
- *  para no enviar fotos de varios MB directo desde la cámara del celular. */
+/** Redimensiona y comprime una imagen en el navegador antes de convertirla a base64 */
 function comprimirImagen(archivo, anchoMax, calidad) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -231,7 +240,7 @@ async function cargarLista() {
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px">
       ${materialesCache.map((m, idx) => `
         <div class="tarjeta-innovacion" data-idx="${idx}" style="border:1px solid var(--borde); border-radius:8px; overflow:hidden; background:var(--blanco); cursor:pointer; transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
-          ${m.imagenUrl ? `<img src="${convertirUrlPreview(m.imagenUrl)}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'">` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px">📷 Sin imagen</div>`}
+          ${m.imagenUrl ? `<img src="${m.imagenUrl}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'">` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px">📷 Sin imagen</div>`}
           <div style="padding:10px 12px">
             <div style="font-size:11px; color:var(--texto-secundario); font-weight:600; text-transform:uppercase">${nombrePorId(m.tienda)}</div>
             <div style="font-size:13px; margin:4px 0 8px">${m.descripcion}</div>
@@ -251,10 +260,6 @@ async function cargarLista() {
   });
 }
 
-function convertirUrlPreview(url) {
-  return url.replace("/view?usp=drivesdk", "/preview");
-}
-
 function abrirModal(idx) {
   const m = materialesCache[idx];
   const modal = document.getElementById("modal-innovacion");
@@ -262,34 +267,66 @@ function abrirModal(idx) {
   const esPendiente = m.estado === "Pendiente";
   const nuevoEstado = esPendiente ? "Procesado" : "Pendiente";
 
+  // Función para generar la URL de vista previa de Drive
+  function getDrivePreviewUrl(url) {
+    if (!url) return null;
+    // Si es URL de Drive, convertir a vista previa
+    if (url.includes("drive.google.com")) {
+      // Extraer el ID del archivo
+      const match = url.match(/[?&]id=([^&]+)/) || url.match(/\/d\/([^\/]+)/);
+      if (match) {
+        return `https://drive.google.com/uc?export=view&id=${match[1]}`;
+      }
+      // Si no se pudo extraer el ID, usar la URL original con parámetro de vista
+      return url.includes("?") ? url + "&usp=drivesdk" : url + "?usp=drivesdk";
+    }
+    return url;
+  }
+
+  const imagenPreview = m.imagenUrl ? getDrivePreviewUrl(m.imagenUrl) : null;
+
   modal.innerHTML = `
-    <div id="overlay-modal-innovacion" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; display:flex; align-items:center; justify-content:center; padding:20px">
-      <div style="background:#fff; border-radius:12px; max-width:420px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,0.25)">
-        ${m.imagenUrl ? `
-          <img src="${convertirUrlPreview(m.imagenUrl)}" style="width:100%; max-height:320px; object-fit:contain; background:#000; display:block">
+    <div id="overlay-modal-innovacion" style="position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:60; display:flex; align-items:center; justify-content:center; padding:20px; animation:fadeIn 0.2s ease">
+      <div style="background:#fff; border-radius:12px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+        ${imagenPreview ? `
+          <div style="background:#1a1a2e; display:flex; align-items:center; justify-content:center; min-height:200px; max-height:320px; overflow:hidden; border-radius:12px 12px 0 0">
+            <img src="${imagenPreview}" style="width:100%; max-height:320px; object-fit:contain; display:block" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding:40px; color:#888; text-align:center\\'>❌ No se pudo cargar la imagen</div>'">
+          </div>
         ` : `
-          <div style="height:120px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-secundario)">📷 Sin imagen</div>
+          <div style="height:120px; background:var(--fondo); display:flex; align-items:center; justify-content:center; border-radius:12px 12px 0 0; color:var(--texto-secundario)">📷 Sin imagen</div>
         `}
         <div style="padding:20px">
-          <div style="font-size:11px; color:var(--texto-secundario); font-weight:700; text-transform:uppercase">${nombrePorId(m.tienda)}</div>
+          <div style="font-size:11px; color:var(--texto-secundario); font-weight:700; text-transform:uppercase; letter-spacing:0.05em">${nombrePorId(m.tienda)}</div>
           <h3 style="font-size:16px; color:var(--azul-base); margin:6px 0 10px">${m.descripcion}</h3>
-          <p style="font-size:12px; color:var(--texto-secundario); margin:0 0 4px">Solicitado: ${formatearFecha(m.fechaSolicitud)}</p>
-          <p style="font-size:12px; color:var(--texto-secundario); margin:0 0 4px">Registrado por: ${m.usuario || "—"}</p>
-          <p style="font-size:13px; margin:10px 0; font-weight:700; color:${esPendiente ? 'var(--ambar-oscuro)' : 'var(--verde-kpi)'}">Estado actual: ${m.estado}</p>
+          <div style="font-size:13px; color:var(--texto-secundario); margin:0 0 2px">📅 Solicitado: <strong>${formatearFecha(m.fechaSolicitud)}</strong></div>
+          <div style="font-size:13px; color:var(--texto-secundario); margin:0 0 2px">👤 Registrado por: <strong>${m.nombreUsuario || m.usuario || "—"}</strong></div>
+          <div style="font-size:13px; margin:14px 0 6px; font-weight:600; color:${esPendiente ? 'var(--ambar-oscuro)' : 'var(--verde-kpi)'}">
+            Estado actual: ${m.estado}
+          </div>
 
-          <div style="display:flex; gap:10px; margin-top:16px">
-            <button id="btn-cambiar-estado" class="btn-primario" style="max-width:none; flex:1">
-              Marcar como ${nuevoEstado}
+          <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap">
+            <button id="btn-cambiar-estado" class="btn-primario" style="max-width:none; flex:1; min-width:120px">
+              ${esPendiente ? '✅ Marcar como Procesado' : '⏳ Marcar como Pendiente'}
             </button>
-            <button id="btn-cerrar-modal" class="btn-google" style="max-width:none; margin-top:0; flex:0 0 auto; padding-left:18px; padding-right:18px">
-              Cerrar
+            <button id="btn-cerrar-modal" class="btn-secundario" style="max-width:none; margin-top:0; flex:0 0 auto; padding-left:18px; padding-right:18px">
+              ✕ Cerrar
             </button>
           </div>
-          <p id="estado-modal-innovacion" class="vista-sub" style="margin-top:10px"></p>
+          <p id="estado-modal-innovacion" class="estado-texto" style="margin-top:10px"></p>
         </div>
       </div>
     </div>
   `;
+
+  // Agregar estilos para la animación
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  `;
+  document.head.appendChild(style);
 
   document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModal);
   document.getElementById("overlay-modal-innovacion").addEventListener("click", (e) => {
