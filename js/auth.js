@@ -2,11 +2,13 @@ import { auth, db, googleProvider } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup, // <--- Cambiado de signInWithRedirect
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { mostrarLoader, ocultarLoader } from "./loader.js";
 
 // Revisa si el correo está en la colección de autorizados
 async function correoAutorizado(email) {
@@ -21,12 +23,15 @@ function mostrarError(msg) {
 }
 
 async function validarYRedirigir(user) {
+  mostrarLoader("Verificando acceso...");
   const autorizado = await correoAutorizado(user.email);
   if (!autorizado) {
     await signOut(auth);
+    ocultarLoader();
     mostrarError("Este correo no está autorizado para acceder al sistema.");
     return;
   }
+  mostrarLoader("Entrando...");
   window.location.href = "app.html";
 }
 
@@ -37,11 +42,13 @@ if (formLogin) {
     e.preventDefault();
     const email = document.getElementById("login-email").value.trim();
     const pass = document.getElementById("login-password").value;
+    mostrarLoader("Iniciando sesión...");
     try {
       const cred = await signInWithEmailAndPassword(auth, email, pass);
       await validarYRedirigir(cred.user);
     } catch (err) {
-      mostrarError("Correo o contraseña incorrectos. (" + err.code + ")");
+      ocultarLoader();
+      mostrarError("Correo o contraseña incorrectos.");
     }
   });
 }
@@ -60,36 +67,57 @@ if (formRegistro) {
       return;
     }
 
+    mostrarLoader("Verificando correo autorizado...");
     const autorizado = await correoAutorizado(email);
     if (!autorizado) {
+      ocultarLoader();
       mostrarError("Este correo no está autorizado para registrarse.");
       return;
     }
 
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      mostrarLoader("Creando cuenta...");
+      await createUserWithEmailAndPassword(auth, email, pass);
+      mostrarLoader("Entrando...");
       window.location.href = "app.html";
     } catch (err) {
+      ocultarLoader();
       mostrarError(err.code === "auth/email-already-in-use"
         ? "Ese correo ya tiene una cuenta. Inicia sesión."
-        : "No se pudo crear la cuenta. (" + err.code + ")");
+        : "No se pudo crear la cuenta. Verifica los datos.");
     }
   });
 }
 
-// --- Login con Google (Ventana emergente) ---
+// --- Login con Google (redirección) ---
 const btnGoogle = document.getElementById("btn-google");
 if (btnGoogle) {
   btnGoogle.addEventListener("click", async () => {
+    mostrarLoader("Conectando con Google...");
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      await validarYRedirigir(result.user);
+      await signInWithRedirect(auth, googleProvider);
     } catch (err) {
-      console.error("Error en signInWithPopup:", err);
+      ocultarLoader();
       mostrarError("Google - " + err.code + ": " + err.message);
     }
   });
 }
+
+// Al volver de la redirección de Google, procesa el resultado.
+// Se muestra el loader de inmediato para evitar el parpadeo del formulario
+// de login mientras Firebase resuelve el resultado de la redirección.
+mostrarLoader("Completando inicio de sesión...");
+getRedirectResult(auth).then(async (cred) => {
+  if (cred && cred.user) {
+    await validarYRedirigir(cred.user);
+  } else {
+    // No había ninguna redirección pendiente (carga normal de la página de login)
+    ocultarLoader();
+  }
+}).catch((err) => {
+  ocultarLoader();
+  mostrarError("Google (redirect) - " + err.code + ": " + err.message);
+});
 
 // --- Protección de app.html ---
 export function protegerPagina() {
