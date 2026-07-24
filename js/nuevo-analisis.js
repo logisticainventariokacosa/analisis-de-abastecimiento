@@ -38,48 +38,150 @@ function render() {
 
   cont.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">1. Archivos y parámetros</h3>
+      <h3 style="margin-top:0; font-size:16px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px">📄</span>
+        1. Archivos y parámetros
+      </h3>
 
       ${tieneVariasTiendas ? `
-        <label for="na-tienda">Tienda a analizar</label>
-        <select id="na-tienda" style="width:100%; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif">
-          ${opcionesTienda}
-        </select>
+        <div class="form-row">
+          <div>
+            <label class="form-label" for="na-tienda">Tienda a analizar <span class="required">*</span></label>
+            <select id="na-tienda" class="input-modern select-modern">
+              ${opcionesTienda}
+            </select>
+          </div>
+        </div>
       ` : `<input type="hidden" id="na-tienda" value="${misTiendas[0] || ''}">`}
 
-      <label for="na-ventas">Archivo de ventas (.MHT)</label>
-      <input type="file" id="na-ventas" accept=".mht,.MHT">
-
-      <label for="na-stock-tienda">Stock de la tienda (.MHT)</label>
-      <input type="file" id="na-stock-tienda" accept=".mht,.MHT">
-
-      <label for="na-stock-kacosa">Stock de Kacosa (.MHT)</label>
-      <input type="file" id="na-stock-kacosa" accept=".mht,.MHT">
-
-      <label for="na-periodo">¿Para cuánto tiempo necesitas abastecerte?</label>
-      <select id="na-periodo" style="width:100%; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif">
-        <option value="semana">Una semana</option>
-        <option value="mes">Un mes</option>
-        <option value="meses">Varios meses</option>
-      </select>
-
-      <div id="na-meses-wrap" style="display:none">
-        <label for="na-meses-cantidad">¿Cuántos meses?</label>
-        <input type="number" id="na-meses-cantidad" min="1" max="24" value="2">
+      <!-- Archivo de ventas -->
+      <div style="margin-top:16px">
+        <label class="form-label" for="na-ventas">Archivo de ventas <span class="required">*</span></label>
+        <div class="file-input-wrapper" id="file-wrapper-ventas">
+          <span class="file-icon">📊</span>
+          <div class="file-info">
+            <div class="file-name" id="file-name-ventas">Seleccionar archivo</div>
+            <div class="file-hint">.MHT de SAP · Ventas</div>
+          </div>
+          <span class="file-status empty" id="file-status-ventas">Pendiente</span>
+          <input type="file" id="na-ventas" accept=".mht,.MHT">
+        </div>
       </div>
 
-      <label for="na-margen">Margen de seguridad: <span id="na-margen-valor">30%</span></label>
-      <input type="range" id="na-margen" min="10" max="100" step="5" value="30" style="width:100%">
+      <!-- Stock de la tienda -->
+      <div style="margin-top:16px">
+        <label class="form-label" for="na-stock-tienda">Stock de la tienda <span class="required">*</span></label>
+        <div class="file-input-wrapper" id="file-wrapper-stock-tienda">
+          <span class="file-icon">🏪</span>
+          <div class="file-info">
+            <div class="file-name" id="file-name-stock-tienda">Seleccionar archivo</div>
+            <div class="file-hint">.MHT de SAP · Stock tienda</div>
+          </div>
+          <span class="file-status empty" id="file-status-stock-tienda">Pendiente</span>
+          <input type="file" id="na-stock-tienda" accept=".mht,.MHT">
+        </div>
+      </div>
 
-      <button id="btn-analizar" class="btn-primario" style="margin-top:20px; max-width:260px">
-        Analizar
+      <!-- Stock de Kacosa -->
+      <div style="margin-top:16px">
+        <label class="form-label" for="na-stock-kacosa">Stock de Kacosa <span class="required">*</span></label>
+        <div class="file-input-wrapper" id="file-wrapper-stock-kacosa">
+          <span class="file-icon">🏢</span>
+          <div class="file-info">
+            <div class="file-name" id="file-name-stock-kacosa">Seleccionar archivo</div>
+            <div class="file-hint">.MHT de SAP · Stock Kacosa</div>
+          </div>
+          <span class="file-status empty" id="file-status-stock-kacosa">Pendiente</span>
+          <input type="file" id="na-stock-kacosa" accept=".mht,.MHT">
+        </div>
+      </div>
+
+      <!-- Período -->
+      <div class="form-row" style="margin-top:16px">
+        <div>
+          <label class="form-label" for="na-periodo">Horizonte de abastecimiento</label>
+          <select id="na-periodo" class="input-modern select-modern">
+            <option value="semana">Una semana</option>
+            <option value="mes" selected>Un mes</option>
+            <option value="meses">Varios meses</option>
+          </select>
+        </div>
+        <div id="na-meses-wrap" style="display:none">
+          <label class="form-label" for="na-meses-cantidad">Cantidad de meses</label>
+          <input type="number" id="na-meses-cantidad" class="input-modern" min="1" max="24" value="2">
+        </div>
+      </div>
+
+      <!-- Margen -->
+      <div style="margin-top:16px">
+        <label class="form-label">Margen de seguridad: <span id="na-margen-valor" style="color:var(--ambar-oscuro); font-weight:700">30%</span></label>
+        <input type="range" id="na-margen" min="10" max="100" step="5" value="30">
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--texto-claro); margin-top:2px">
+          <span>10%</span>
+          <span>50%</span>
+          <span>100%</span>
+        </div>
+      </div>
+
+      <!-- Botón Analizar -->
+      <button id="btn-analizar" class="btn-primario" style="margin-top:20px; min-width:200px">
+        🚀 Analizar
       </button>
-      <p id="na-estado" class="vista-sub" style="margin-top:12px"></p>
+      <p id="na-estado" class="estado-texto" style="margin-top:12px"></p>
     </div>
 
     <div id="na-duplicados"></div>
     <div id="na-resultados"></div>
   `;
+
+  // Event listeners para los archivos (drag & drop + cambio de estado)
+  const fileInputs = [
+    { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas' },
+    { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda' },
+    { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa' }
+  ];
+
+  fileInputs.forEach(({ id, nameId, statusId, wrapperId }) => {
+    const input = document.getElementById(id);
+    const nameEl = document.getElementById(nameId);
+    const statusEl = document.getElementById(statusId);
+    const wrapper = document.getElementById(wrapperId);
+
+    if (input) {
+      input.addEventListener('change', () => {
+        if (input.files && input.files[0]) {
+          nameEl.textContent = input.files[0].name;
+          statusEl.textContent = '✓ Cargado';
+          statusEl.className = 'file-status loaded';
+          wrapper.classList.add('loaded');
+        } else {
+          nameEl.textContent = 'Seleccionar archivo';
+          statusEl.textContent = 'Pendiente';
+          statusEl.className = 'file-status empty';
+          wrapper.classList.remove('loaded');
+        }
+      });
+
+      // Drag and drop
+      if (wrapper) {
+        wrapper.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          wrapper.classList.add('dragover');
+        });
+        wrapper.addEventListener('dragleave', () => {
+          wrapper.classList.remove('dragover');
+        });
+        wrapper.addEventListener('drop', (e) => {
+          e.preventDefault();
+          wrapper.classList.remove('dragover');
+          if (e.dataTransfer.files.length) {
+            input.files = e.dataTransfer.files;
+            input.dispatchEvent(new Event('change'));
+          }
+        });
+      }
+    }
+  });
 
   document.getElementById("na-periodo").addEventListener("change", (e) => {
     document.getElementById("na-meses-wrap").style.display = e.target.value === "meses" ? "block" : "none";
@@ -117,7 +219,23 @@ async function ejecutarAnalisis() {
   try {
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
-    const ventasProcesadas = procesarVentas(filasVentas);
+    
+    // Calcular el período para el análisis
+    let mesesAnalisis = null;
+    let semanasAnalisis = null;
+    
+    if (periodo === "semana") {
+      semanasAnalisis = 1;
+    } else if (periodo === "mes") {
+      mesesAnalisis = 1;
+    } else if (periodo === "meses") {
+      mesesAnalisis = mesesCantidad || 1;
+    }
+    
+    const ventasProcesadas = procesarVentas(filasVentas, {
+      mesesAnalisis,
+      semanasAnalisis
+    });
 
     estadoTexto.textContent = "Leyendo stock de la tienda...";
     const filasStockTienda = parsearMHT(await archivoStockTienda.text());
@@ -236,7 +354,12 @@ async function finalizarCalculo(gruposConfirmados) {
   estado.resultadoFinal = resultado;
   estado.sugerencias = sugerencias;
   estado.sinRotacion = sinRotacion;
-  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados.`;
+  
+  // Mostrar información del período en el mensaje
+  const mesesUsados = estado.ventasProcesadas.rangoFechas?.meses || '?';
+  const semanasUsadas = estado.ventasProcesadas.rangoFechas?.semanas || '?';
+  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsados} meses (${semanasUsadas} semanas).`;
+  
   mostrarResultados(resultado, sugerencias);
 
   // Deja el resultado disponible globalmente para el chat y otros módulos
@@ -245,6 +368,8 @@ async function finalizarCalculo(gruposConfirmados) {
     fechaAnalisis: estado.fechaAnalisis,
     periodo: estado.periodo,
     margenPct: estado.margenPct,
+    mesesUsados: estado.ventasProcesadas.rangoFechas?.meses,
+    semanasUsadas: estado.ventasProcesadas.rangoFechas?.semanas,
     materiales: resultado,
     sugerencias
   };
@@ -273,7 +398,7 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
 
     const infoTienda = stockTienda[codigo];
     const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
-    if (stockTiendaDisp > 0) return; // sí hay en tienda, no hace falta anexarlo forzado
+    if (stockTiendaDisp > 0) return;
 
     const empaque = Number(m.empaque) || 1;
     const aPedir = Math.min(empaque, stockKacosaDisp);
@@ -281,7 +406,7 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
     resultado.push({
       codigo,
       descripcion: m.descripcion,
-      clase: m.clase,
+      clase: m.clase || "D",
       ventasPeriodo: 0,
       stockTienda: stockTiendaDisp,
       stockKacosa: stockKacosaDisp,
@@ -364,10 +489,15 @@ function mostrarResultados(resultado, sugerencias) {
 
   const ordenado = grupos.pedido.slice().sort((a, b) => b.aPedir - a.aPedir);
 
+  const infoPeriodo = window.KACOSA.ultimoAnalisis;
+  const textoPeriodo = infoPeriodo 
+    ? `Período usado: ${infoPeriodo.mesesUsados || '?'} meses (${infoPeriodo.semanasUsadas || '?'} semanas)`
+    : '';
+
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">3. Resultado</h3>
-      <p class="vista-sub" style="margin-top:0">Periodo de movimientos analizado: <strong>${resultado[0]?.periodoAnalizado || "—"}</strong></p>
+      <p class="vista-sub" style="margin-top:-4px">${textoPeriodo}</p>
       <div class="kpi-grid">
         <div class="kpi-card verde">
           <div class="label">Materiales a pedir</div>
@@ -386,29 +516,29 @@ function mostrarResultados(resultado, sugerencias) {
           <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
         </div>
       </div>
-      <div style="overflow-x:auto">
-        <table style="width:100%; border-collapse:collapse; font-size:13px">
+      <div class="table-responsive">
+        <table>
           <thead>
-            <tr style="text-align:left; border-bottom:2px solid var(--borde)">
-              <th style="padding:8px 6px">Código</th>
-              <th style="padding:8px 6px">Descripción</th>
-              <th style="padding:8px 6px">Clase</th>
-              <th style="padding:8px 6px">Ventas periodo</th>
-              <th style="padding:8px 6px">Stock tienda</th>
-              <th style="padding:8px 6px">Stock Kacosa</th>
-              <th style="padding:8px 6px">A pedir</th>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Clase</th>
+              <th>Ventas periodo</th>
+              <th>Stock tienda</th>
+              <th>Stock Kacosa</th>
+              <th>A pedir</th>
             </tr>
           </thead>
           <tbody>
             ${ordenado.map(m => `
-              <tr style="border-bottom:1px solid var(--borde)">
-                <td style="padding:8px 6px">${m.codigo}</td>
-                <td style="padding:8px 6px">${m.descripcion}</td>
-                <td style="padding:8px 6px; font-weight:700">${m.clase}</td>
-                <td style="padding:8px 6px">${m.ventasPeriodo}</td>
-                <td style="padding:8px 6px">${m.stockTienda}</td>
-                <td style="padding:8px 6px">${m.stockKacosa}</td>
-                <td style="padding:8px 6px; font-weight:700; color:var(--azul-base)">${m.aPedir}</td>
+              <tr>
+                <td>${m.codigo}</td>
+                <td>${m.descripcion}</td>
+                <td><span class="clase-badge clase-${m.clase.toLowerCase()}">${m.clase}</span></td>
+                <td>${m.ventasPeriodo}</td>
+                <td>${m.stockTienda}</td>
+                <td>${m.stockKacosa}</td>
+                <td><strong>${m.aPedir}</strong></td>
               </tr>
             `).join("")}
           </tbody>
@@ -423,12 +553,12 @@ function mostrarResultados(resultado, sugerencias) {
         (5) ${(estado.sinRotacion || []).length} sin rotación en tienda.
       </p>
 
-      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px">
-        <button id="btn-descargar-excel" class="btn-primario" style="max-width:220px">Descargar los 5 Excel</button>
-        <button id="btn-guardar-analisis" class="btn-google" style="max-width:220px; margin-top:0">Guardar análisis</button>
-        <button id="btn-enviar-correo" class="btn-google" style="max-width:220px; margin-top:0">Enviar por correo</button>
+      <div class="btn-group">
+        <button id="btn-descargar-excel" class="btn-primario">📥 Descargar los 5 Excel</button>
+        <button id="btn-guardar-analisis" class="btn-secundario">💾 Guardar análisis</button>
+        <button id="btn-enviar-correo" class="btn-secundario">📧 Enviar por correo</button>
       </div>
-      <p id="na-estado-acciones" class="vista-sub" style="margin-top:10px"></p>
+      <p id="na-estado-acciones" class="estado-texto" style="margin-top:10px"></p>
     </div>
   `;
 
@@ -437,7 +567,7 @@ function mostrarResultados(resultado, sugerencias) {
   document.getElementById("btn-enviar-correo").addEventListener("click", enviarCorreo);
 }
 
-/* ============ Excel (SheetJS) — 4 archivos ============ */
+/* ============ Excel (SheetJS) — 5 archivos ============ */
 
 function filasBase(materiales) {
   return materiales.map(m => ({
@@ -526,11 +656,11 @@ async function guardarAnalisisEnSheets() {
     : "Error al guardar: " + resp.error;
 }
 
-/* ============ Enviar por correo (4 adjuntos) ============ */
+/* ============ Enviar por correo (5 adjuntos) ============ */
 
 async function enviarCorreo() {
   const estadoAcciones = document.getElementById("na-estado-acciones");
-  estadoAcciones.textContent = "Preparando los 4 archivos...";
+  estadoAcciones.textContent = "Preparando los 5 archivos...";
 
   const archivos = construirArchivos().map(a => ({
     nombre: a.nombre,
