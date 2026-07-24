@@ -730,7 +730,7 @@ tbody tr:hover {
   margin-top: 12px;
 }
 
-/* --- Responsive --- */
+/* --- RESPONSIVE --- */
 @media (max-width: 860px) {
   .sidebar {
     position: fixed;
