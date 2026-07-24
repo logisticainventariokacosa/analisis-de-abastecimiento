@@ -4,6 +4,9 @@ import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import { protegerPagina, cerrarSesion } from "./auth.js";
 import { nombrePorId } from "./tiendas.js";
+import { mostrarLoader, ocultarLoader } from "./loader.js";
+
+mostrarLoader("Verificando sesión...");
 
 // Estado global simple de la app (accesible desde otros módulos vía window.KACOSA)
 window.KACOSA = {
@@ -16,7 +19,7 @@ protegerPagina();
 
 // Espera a que se confirme la sesión para cargar los datos del usuario (tiendas permitidas)
 onAuthStateChanged(auth, async (user) => {
-  if (!user) return;
+  if (!user) return; // protegerPagina() ya se encarga de redirigir al login
   window.KACOSA.usuario = user;
 
   const ref = doc(db, "usuarios_autorizados", user.email.toLowerCase());
@@ -33,6 +36,7 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   document.dispatchEvent(new CustomEvent("kacosa:usuario-listo"));
+  ocultarLoader();
 });
 
 // --- Menú hamburguesa (móvil) ---
