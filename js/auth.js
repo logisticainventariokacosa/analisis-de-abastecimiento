@@ -104,36 +104,57 @@ if (btnGoogle) {
 }
 
 // Al volver de la redirección de Google, procesa el resultado.
-// Se muestra el loader de inmediato para evitar el parpadeo del formulario
-// de login mientras Firebase resuelve el resultado de la redirección.
-mostrarLoader("Completando inicio de sesión...");
-getRedirectResult(auth).then(async (cred) => {
-  if (cred && cred.user) {
-    await validarYRedirigir(cred.user);
-  } else {
-    // No había ninguna redirección pendiente (carga normal de la página de login)
+// IMPORTANTE: este bloque solo debe ejecutarse en index.html (login). Como
+// auth.js también se importa desde app.html (vía nav.js), lo aislamos
+// comprobando que el formulario de login exista en esta página — si no
+// existe, estamos en app.html y no hacemos nada aquí.
+if (formLogin || btnGoogle) {
+  // Se muestra el loader de inmediato para evitar el parpadeo del formulario
+  // de login mientras Firebase resuelve el resultado de la redirección.
+  mostrarLoader("Completando inicio de sesión...");
+  getRedirectResult(auth).then(async (cred) => {
+    if (cred && cred.user) {
+      await validarYRedirigir(cred.user);
+    } else {
+      // No había ninguna redirección pendiente (carga normal de la página de login)
+      ocultarLoader();
+    }
+  }).catch((err) => {
     ocultarLoader();
-  }
-}).catch((err) => {
-  ocultarLoader();
-  mostrarError("Google (redirect) - " + err.code + ": " + err.message);
-});
+    mostrarError("Google (redirect) - " + err.code + ": " + err.message);
+  });
+}
 
 // --- Protección de app.html ---
 export function protegerPagina() {
+  let yaRedirigido = false;
+
+  const irAlLogin = () => {
+    if (yaRedirigido) return;
+    yaRedirigido = true;
+    window.location.href = "index.html";
+  };
+
   onAuthStateChanged(auth, async (user) => {
-    if (!user) {
-      window.location.href = "index.html";
+    if (user) {
+      const autorizado = await correoAutorizado(user.email);
+      if (!autorizado) {
+        await signOut(auth);
+        irAlLogin();
+      } else {
+        const nombreEl = document.getElementById("usuario-actual");
+        if (nombreEl) nombreEl.textContent = user.email;
+      }
       return;
     }
-    const autorizado = await correoAutorizado(user.email);
-    if (!autorizado) {
-      await signOut(auth);
-      window.location.href = "index.html";
-    } else {
-      const nombreEl = document.getElementById("usuario-actual");
-      if (nombreEl) nombreEl.textContent = user.email;
-    }
+
+    // user llegó null: puede ser un estado transitorio justo después de un
+    // login por redirección (Google), donde la sesión aún no terminó de
+    // persistirse. Esperamos un momento y revisamos de nuevo antes de
+    // decidir que realmente no hay sesión — esto evita el "rebote" al login.
+    setTimeout(() => {
+      if (!auth.currentUser) irAlLogin();
+    }, 1500);
   });
 }
 
