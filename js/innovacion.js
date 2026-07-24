@@ -3,6 +3,7 @@ import { callBridge, archivoABase64 } from "./bridge.js";
 import { TIENDAS, nombrePorId } from "./tiendas.js";
 
 let inicializado = false;
+let materialesCache = [];
 
 function tiendasDelUsuario() {
   return window.KACOSA?.tiendas || [];
@@ -224,13 +225,13 @@ async function cargarLista() {
     return;
   }
 
-  const ordenados = resp.materiales.slice().reverse(); // más recientes primero
+  materialesCache = resp.materiales.slice().reverse(); // más recientes primero
 
   lista.innerHTML = `
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px">
-      ${ordenados.map(m => `
-        <div style="border:1px solid var(--borde); border-radius:8px; overflow:hidden; background:var(--blanco)">
-          ${m.imagenUrl ? `<a href="${m.imagenUrl}" target="_blank"><img src="${m.imagenUrl.replace('/view?usp=drivesdk','/preview')}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'"></a>` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px">📷 Sin imagen</div>`}
+      ${materialesCache.map((m, idx) => `
+        <div class="tarjeta-innovacion" data-idx="${idx}" style="border:1px solid var(--borde); border-radius:8px; overflow:hidden; background:var(--blanco); cursor:pointer; transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
+          ${m.imagenUrl ? `<img src="${convertirUrlPreview(m.imagenUrl)}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'">` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px">📷 Sin imagen</div>`}
           <div style="padding:10px 12px">
             <div style="font-size:11px; color:var(--texto-secundario); font-weight:600; text-transform:uppercase">${nombrePorId(m.tienda)}</div>
             <div style="font-size:13px; margin:4px 0 8px">${m.descripcion}</div>
@@ -242,7 +243,79 @@ async function cargarLista() {
         </div>
       `).join("")}
     </div>
+    <div id="modal-innovacion"></div>
   `;
+
+  document.querySelectorAll(".tarjeta-innovacion").forEach(tarjeta => {
+    tarjeta.addEventListener("click", () => abrirModal(Number(tarjeta.dataset.idx)));
+  });
+}
+
+function convertirUrlPreview(url) {
+  return url.replace("/view?usp=drivesdk", "/preview");
+}
+
+function abrirModal(idx) {
+  const m = materialesCache[idx];
+  const modal = document.getElementById("modal-innovacion");
+
+  const esPendiente = m.estado === "Pendiente";
+  const nuevoEstado = esPendiente ? "Procesado" : "Pendiente";
+
+  modal.innerHTML = `
+    <div id="overlay-modal-innovacion" style="position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; display:flex; align-items:center; justify-content:center; padding:20px">
+      <div style="background:#fff; border-radius:12px; max-width:420px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 12px 32px rgba(0,0,0,0.25)">
+        ${m.imagenUrl ? `
+          <img src="${convertirUrlPreview(m.imagenUrl)}" style="width:100%; max-height:320px; object-fit:contain; background:#000; display:block">
+        ` : `
+          <div style="height:120px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-secundario)">📷 Sin imagen</div>
+        `}
+        <div style="padding:20px">
+          <div style="font-size:11px; color:var(--texto-secundario); font-weight:700; text-transform:uppercase">${nombrePorId(m.tienda)}</div>
+          <h3 style="font-size:16px; color:var(--azul-base); margin:6px 0 10px">${m.descripcion}</h3>
+          <p style="font-size:12px; color:var(--texto-secundario); margin:0 0 4px">Solicitado: ${formatearFecha(m.fechaSolicitud)}</p>
+          <p style="font-size:12px; color:var(--texto-secundario); margin:0 0 4px">Registrado por: ${m.usuario || "—"}</p>
+          <p style="font-size:13px; margin:10px 0; font-weight:700; color:${esPendiente ? 'var(--ambar-oscuro)' : 'var(--verde-kpi)'}">Estado actual: ${m.estado}</p>
+
+          <div style="display:flex; gap:10px; margin-top:16px">
+            <button id="btn-cambiar-estado" class="btn-primario" style="max-width:none; flex:1">
+              Marcar como ${nuevoEstado}
+            </button>
+            <button id="btn-cerrar-modal" class="btn-google" style="max-width:none; margin-top:0; flex:0 0 auto; padding-left:18px; padding-right:18px">
+              Cerrar
+            </button>
+          </div>
+          <p id="estado-modal-innovacion" class="vista-sub" style="margin-top:10px"></p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById("btn-cerrar-modal").addEventListener("click", cerrarModal);
+  document.getElementById("overlay-modal-innovacion").addEventListener("click", (e) => {
+    if (e.target.id === "overlay-modal-innovacion") cerrarModal();
+  });
+  document.getElementById("btn-cambiar-estado").addEventListener("click", () => cambiarEstado(m.id, nuevoEstado));
+}
+
+function cerrarModal() {
+  const modal = document.getElementById("modal-innovacion");
+  if (modal) modal.innerHTML = "";
+}
+
+async function cambiarEstado(id, nuevoEstado) {
+  const estadoModal = document.getElementById("estado-modal-innovacion");
+  estadoModal.textContent = "Actualizando...";
+
+  const resp = await callBridge("actualizarEstadoInnovacion", { id, estado: nuevoEstado });
+
+  if (!resp.ok) {
+    estadoModal.textContent = "Error: " + resp.error;
+    return;
+  }
+
+  cerrarModal();
+  cargarLista();
 }
 
 function formatearFecha(valor) {
