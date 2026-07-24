@@ -10,15 +10,72 @@ function render() {
 
   cont.innerHTML = `
     <div class="card">
-      <label for="input-stock-kacosa" style="margin-top:0">Archivo de stock de Kacosa (.MHT)</label>
-      <input type="file" id="input-stock-kacosa" accept=".mht,.MHT">
-      <button id="btn-analizar-kacosa" class="btn-primario" style="margin-top:16px;max-width:260px">
-        Analizar stock
+      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px">⚠️</span>
+        Analizar stock de Kacosa
+      </h3>
+
+      <div style="margin-top:4px">
+        <label class="form-label" for="input-stock-kacosa">Archivo de stock de Kacosa <span class="required">*</span></label>
+        <div class="file-input-wrapper" id="file-wrapper-kacosa">
+          <span class="file-icon">🏢</span>
+          <div class="file-info">
+            <div class="file-name" id="file-name-kacosa">Seleccionar archivo</div>
+            <div class="file-hint">.MHT de SAP · Stock Kacosa</div>
+          </div>
+          <span class="file-status empty" id="file-status-kacosa">Pendiente</span>
+          <input type="file" id="input-stock-kacosa" accept=".mht,.MHT">
+        </div>
+      </div>
+
+      <button id="btn-analizar-kacosa" class="btn-primario" style="margin-top:16px; min-width:200px">
+        📊 Analizar stock
       </button>
-      <p id="estado-alertas" class="vista-sub" style="margin-top:12px"></p>
+      <p id="estado-alertas" class="estado-texto" style="margin-top:12px"></p>
     </div>
     <div id="resultado-alertas"></div>
   `;
+
+  // Event listener para el archivo
+  const input = document.getElementById("input-stock-kacosa");
+  const nameEl = document.getElementById("file-name-kacosa");
+  const statusEl = document.getElementById("file-status-kacosa");
+  const wrapper = document.getElementById("file-wrapper-kacosa");
+
+  if (input) {
+    input.addEventListener('change', () => {
+      if (input.files && input.files[0]) {
+        nameEl.textContent = input.files[0].name;
+        statusEl.textContent = '✓ Cargado';
+        statusEl.className = 'file-status loaded';
+        wrapper.classList.add('loaded');
+      } else {
+        nameEl.textContent = 'Seleccionar archivo';
+        statusEl.textContent = 'Pendiente';
+        statusEl.className = 'file-status empty';
+        wrapper.classList.remove('loaded');
+      }
+    });
+
+    // Drag and drop
+    if (wrapper) {
+      wrapper.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        wrapper.classList.add('dragover');
+      });
+      wrapper.addEventListener('dragleave', () => {
+        wrapper.classList.remove('dragover');
+      });
+      wrapper.addEventListener('drop', (e) => {
+        e.preventDefault();
+        wrapper.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+          input.files = e.dataTransfer.files;
+          input.dispatchEvent(new Event('change'));
+        }
+      });
+    }
+  }
 
   document.getElementById("btn-analizar-kacosa").addEventListener("click", procesarArchivo);
 }
@@ -102,7 +159,7 @@ function mostrarAlertas(alertas) {
   const resultado = document.getElementById("resultado-alertas");
 
   if (alertas.length === 0) {
-    resultado.innerHTML = `<div class="card"><p class="vista-sub">No hay alertas — todo el stock de alta rotación está cubierto. 🎉</p></div>`;
+    resultado.innerHTML = `<div class="card"><p class="vista-sub" style="margin:0">No hay alertas — todo el stock de alta rotación está cubierto. 🎉</p></div>`;
     return;
   }
 
@@ -121,39 +178,41 @@ function mostrarAlertas(alertas) {
       </div>
     </div>
     <div class="card">
-      <table style="width:100%; border-collapse:collapse; font-size:13px">
-        <thead>
-          <tr style="text-align:left; border-bottom:2px solid var(--borde)">
-            <th style="padding:8px 6px">Código</th>
-            <th style="padding:8px 6px">Descripción</th>
-            <th style="padding:8px 6px">Clase</th>
-            <th style="padding:8px 6px">Stock Kacosa</th>
-            <th style="padding:8px 6px">A pedir (todas las tiendas)</th>
-            <th style="padding:8px 6px">Alerta</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${alertas.map(a => `
-            <tr style="border-bottom:1px solid var(--borde)">
-              <td style="padding:8px 6px">${a.codigo}</td>
-              <td style="padding:8px 6px">${a.descripcion}</td>
-              <td style="padding:8px 6px">${a.clase}</td>
-              <td style="padding:8px 6px">${a.stockKacosa}</td>
-              <td style="padding:8px 6px">${a.totalAPedir}</td>
-              <td style="padding:8px 6px">
-                <span style="color:${a.tipo === 'SIN_STOCK' ? 'var(--rojo-alerta)' : 'var(--ambar-oscuro)'}; font-weight:700">
-                  ${a.tipo === 'SIN_STOCK' ? 'Sin stock' : 'Stock bajo'}
-                </span>
-              </td>
+      <h3 style="margin-top:0; font-size:14px; color:var(--azul-base)">Lista de alertas</h3>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Descripción</th>
+              <th>Clase</th>
+              <th>Stock Kacosa</th>
+              <th>A pedir (todas)</th>
+              <th>Alerta</th>
             </tr>
-          `).join("")}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            ${alertas.map(a => `
+              <tr>
+                <td>${a.codigo}</td>
+                <td>${a.descripcion}</td>
+                <td><span class="clase-badge clase-${a.clase.toLowerCase()}">${a.clase}</span></td>
+                <td>${a.stockKacosa}</td>
+                <td>${a.totalAPedir}</td>
+                <td>
+                  <span style="color:${a.tipo === 'SIN_STOCK' ? 'var(--rojo-alerta)' : 'var(--ambar-oscuro)'}; font-weight:700">
+                    ${a.tipo === 'SIN_STOCK' ? '⚠️ Sin stock' : '⚡ Stock bajo'}
+                  </span>
+                </td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      </div>
     </div>
   `;
 }
 
-// Renderiza la primera vez que se entra a esta vista
 document.addEventListener("kacosa:vista-cambiada", (e) => {
   if (e.detail.vista === "vista-alertas-kacosa") render();
 });
