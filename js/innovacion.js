@@ -21,38 +21,100 @@ function render() {
 
   cont.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color: var(--azul-base)">Registrar nuevo material</h3>
+      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px">💡</span>
+        Registrar nuevo material
+      </h3>
+
       <form id="form-innovacion">
         ${tieneVariasTiendas ? `
-          <label for="inn-tienda">Tienda</label>
-          <select id="inn-tienda" required style="width:100%; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif">
-            ${opcionesSelect}
-          </select>
+          <div style="margin-top:4px">
+            <label class="form-label" for="inn-tienda">Tienda <span class="required">*</span></label>
+            <select id="inn-tienda" class="input-modern select-modern" required>
+              ${opcionesSelect}
+            </select>
+          </div>
         ` : `<input type="hidden" id="inn-tienda" value="${misTiendas[0] || ''}">`}
 
-        <label for="inn-descripcion">Descripción del material solicitado</label>
-        <textarea id="inn-descripcion" required rows="3"
-          style="width:100%; padding:11px 12px; border:1px solid var(--borde); border-radius:8px; font-size:14px; font-family:'Inter',sans-serif; resize:vertical"
-          placeholder="Ej: Tomacorriente doble USB-C color blanco, marca Bticino"></textarea>
+        <div style="margin-top:16px">
+          <label class="form-label" for="inn-descripcion">Descripción del material solicitado <span class="required">*</span></label>
+          <textarea id="inn-descripcion" required rows="3"
+            class="input-modern"
+            style="resize:vertical; min-height:80px; font-family:'Inter',sans-serif"
+            placeholder="Ej: Tomacorriente doble USB-C color blanco, marca Bticino"></textarea>
+        </div>
 
-        <label for="inn-fecha">Fecha de solicitud</label>
-        <input type="date" id="inn-fecha" required>
+        <div style="margin-top:16px">
+          <label class="form-label" for="inn-fecha">Fecha de solicitud <span class="required">*</span></label>
+          <input type="date" id="inn-fecha" class="input-modern" required>
+        </div>
 
-        <label for="inn-imagen">Foto del material (opcional)</label>
-        <input type="file" id="inn-imagen" accept="image/*" capture="environment">
+        <div style="margin-top:16px">
+          <label class="form-label" for="inn-imagen">Foto del material (opcional)</label>
+          <div class="file-input-wrapper" id="file-wrapper-innovacion">
+            <span class="file-icon">📷</span>
+            <div class="file-info">
+              <div class="file-name" id="file-name-innovacion">Seleccionar archivo</div>
+              <div class="file-hint">JPG, PNG · Foto del material</div>
+            </div>
+            <span class="file-status empty" id="file-status-innovacion">Pendiente</span>
+            <input type="file" id="inn-imagen" accept="image/*" capture="environment">
+          </div>
+        </div>
 
-        <button type="submit" class="btn-primario" style="margin-top:18px; max-width:260px">
-          Registrar material
+        <button type="submit" class="btn-primario" style="margin-top:18px; min-width:200px">
+          📝 Registrar material
         </button>
       </form>
-      <p id="estado-innovacion" class="vista-sub" style="margin-top:12px"></p>
+      <p id="estado-innovacion" class="estado-texto"></p>
     </div>
 
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color: var(--azul-base)">Materiales registrados</h3>
+      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">Materiales registrados</h3>
       <div id="lista-innovacion"><p class="vista-sub">Cargando...</p></div>
     </div>
   `;
+
+  // Event listener para la imagen
+  const inputImg = document.getElementById("inn-imagen");
+  const nameEl = document.getElementById("file-name-innovacion");
+  const statusEl = document.getElementById("file-status-innovacion");
+  const wrapper = document.getElementById("file-wrapper-innovacion");
+
+  if (inputImg) {
+    inputImg.addEventListener('change', () => {
+      if (inputImg.files && inputImg.files[0]) {
+        nameEl.textContent = inputImg.files[0].name;
+        statusEl.textContent = '✓ Cargado';
+        statusEl.className = 'file-status loaded';
+        wrapper.classList.add('loaded');
+      } else {
+        nameEl.textContent = 'Seleccionar archivo';
+        statusEl.textContent = 'Pendiente';
+        statusEl.className = 'file-status empty';
+        wrapper.classList.remove('loaded');
+      }
+    });
+
+    // Drag and drop
+    if (wrapper) {
+      wrapper.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        wrapper.classList.add('dragover');
+      });
+      wrapper.addEventListener('dragleave', () => {
+        wrapper.classList.remove('dragover');
+      });
+      wrapper.addEventListener('drop', (e) => {
+        e.preventDefault();
+        wrapper.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+          inputImg.files = e.dataTransfer.files;
+          inputImg.dispatchEvent(new Event('change'));
+        }
+      });
+    }
+  }
 
   document.getElementById("inn-fecha").valueAsDate = new Date();
   document.getElementById("form-innovacion").addEventListener("submit", registrarMaterial);
@@ -103,6 +165,15 @@ async function registrarMaterial(e) {
       estado.textContent = "Material registrado correctamente.";
       e.target.reset();
       document.getElementById("inn-fecha").valueAsDate = new Date();
+      // Resetear el input de archivo
+      const inputImg = document.getElementById("inn-imagen");
+      if (inputImg) {
+        inputImg.value = "";
+        document.getElementById("file-name-innovacion").textContent = "Seleccionar archivo";
+        document.getElementById("file-status-innovacion").textContent = "Pendiente";
+        document.getElementById("file-status-innovacion").className = "file-status empty";
+        document.getElementById("file-wrapper-innovacion").classList.remove("loaded");
+      }
       cargarLista();
     }
   } catch (err) {
@@ -158,13 +229,13 @@ async function cargarLista() {
   lista.innerHTML = `
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px">
       ${ordenados.map(m => `
-        <div style="border:1px solid var(--borde); border-radius:8px; overflow:hidden">
-          ${m.imagenUrl ? `<a href="${m.imagenUrl}" target="_blank"><img src="${m.imagenUrl.replace('/view?usp=drivesdk','/preview')}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'"></a>` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-secundario); font-size:12px">Sin imagen</div>`}
+        <div style="border:1px solid var(--borde); border-radius:8px; overflow:hidden; background:var(--blanco)">
+          ${m.imagenUrl ? `<a href="${m.imagenUrl}" target="_blank"><img src="${m.imagenUrl.replace('/view?usp=drivesdk','/preview')}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'"></a>` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px">📷 Sin imagen</div>`}
           <div style="padding:10px 12px">
             <div style="font-size:11px; color:var(--texto-secundario); font-weight:600; text-transform:uppercase">${nombrePorId(m.tienda)}</div>
             <div style="font-size:13px; margin:4px 0 8px">${m.descripcion}</div>
             <div style="display:flex; justify-content:space-between; align-items:center">
-              <span style="font-size:11px; color:var(--texto-secundario)">${formatearFecha(m.fechaSolicitud)}</span>
+              <span style="font-size:11px; color:var(--texto-claro)">${formatearFecha(m.fechaSolicitud)}</span>
               <span style="font-size:11px; font-weight:700; color:${m.estado === 'Pendiente' ? 'var(--ambar-oscuro)' : 'var(--verde-kpi)'}">${m.estado}</span>
             </div>
           </div>
