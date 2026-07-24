@@ -2,7 +2,9 @@ import { auth, db, googleProvider } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup, // <--- Cambiado de signInWithRedirect
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
@@ -88,39 +90,22 @@ if (formRegistro) {
   });
 }
 
-// --- Login con Google (redirección) ---
+// --- Login con Google (POPUP - más confiable que redirect) ---
 const btnGoogle = document.getElementById("btn-google");
 if (btnGoogle) {
   btnGoogle.addEventListener("click", async () => {
     mostrarLoader("Conectando con Google...");
     try {
-      await signInWithRedirect(auth, googleProvider);
+      const result = await signInWithPopup(auth, googleProvider);
+      await validarYRedirigir(result.user);
     } catch (err) {
       ocultarLoader();
-      mostrarError("Google - " + err.code + ": " + err.message);
+      if (err.code === "auth/popup-closed-by-user") {
+        mostrarError("Cerraste la ventana de Google. Inténtalo de nuevo.");
+      } else {
+        mostrarError("Google - " + err.code + ": " + err.message);
+      }
     }
-  });
-}
-
-// Al volver de la redirección de Google, procesa el resultado.
-// IMPORTANTE: este bloque solo debe ejecutarse en index.html (login). Como
-// auth.js también se importa desde app.html (vía nav.js), lo aislamos
-// comprobando que el formulario de login exista en esta página — si no
-// existe, estamos en app.html y no hacemos nada aquí.
-if (formLogin || btnGoogle) {
-  // Se muestra el loader de inmediato para evitar el parpadeo del formulario
-  // de login mientras Firebase resuelve el resultado de la redirección.
-  mostrarLoader("Completando inicio de sesión...");
-  getRedirectResult(auth).then(async (cred) => {
-    if (cred && cred.user) {
-      await validarYRedirigir(cred.user);
-    } else {
-      // No había ninguna redirección pendiente (carga normal de la página de login)
-      ocultarLoader();
-    }
-  }).catch((err) => {
-    ocultarLoader();
-    mostrarError("Google (redirect) - " + err.code + ": " + err.message);
   });
 }
 
@@ -147,13 +132,12 @@ export function protegerPagina() {
       return;
     }
 
-    // user llegó null: puede ser un estado transitorio justo después de un
-    // login por redirección (Google), donde la sesión aún no terminó de
-    // persistirse. Esperamos un momento y revisamos de nuevo antes de
-    // decidir que realmente no hay sesión — esto evita el "rebote" al login.
-    setTimeout(() => {
-      if (!auth.currentUser) irAlLogin();
-    }, 1500);
+    // Si no hay usuario y estamos en app.html, redirigir al login
+    if (window.location.pathname.includes("app.html")) {
+      setTimeout(() => {
+        if (!auth.currentUser) irAlLogin();
+      }, 500);
+    }
   });
 }
 
