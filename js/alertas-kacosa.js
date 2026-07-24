@@ -3,6 +3,7 @@ import { parsearMHT, aNumero } from "./mht-parser.js";
 import { callBridge } from "./bridge.js";
 
 const CENTROS_KACOSA = ["1000", "3000"];
+let ultimasAlertas = [];
 
 function render() {
   const cont = document.getElementById("alertas-kacosa-contenido");
@@ -156,6 +157,7 @@ function agruparStockKacosa(filas) {
 }
 
 function mostrarAlertas(alertas) {
+  ultimasAlertas = alertas;
   const resultado = document.getElementById("resultado-alertas");
 
   if (alertas.length === 0) {
@@ -209,8 +211,31 @@ function mostrarAlertas(alertas) {
           </tbody>
         </table>
       </div>
+
+      <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:20px">
+        <button id="btn-descargar-alertas" class="btn-primario" style="min-width:200px">📥 Descargar Excel</button>
+      </div>
     </div>
   `;
+
+  document.getElementById("btn-descargar-alertas").addEventListener("click", descargarAlertasExcel);
+}
+
+function descargarAlertasExcel() {
+  const filas = ultimasAlertas.map(a => ({
+    Codigo: a.codigo,
+    Descripcion: a.descripcion,
+    Clase: a.clase,
+    Stock_Kacosa: a.stockKacosa,
+    A_Pedir_Todas_Tiendas: a.totalAPedir,
+    Alerta: a.tipo === "SIN_STOCK" ? "Sin stock" : "Stock bajo"
+  }));
+  const ws = XLSX.utils.json_to_sheet(filas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Alertas_Kacosa");
+
+  const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
+  XLSX.writeFile(wb, `Alertas_Kacosa_${fecha}.xlsx`);
 }
 
 document.addEventListener("kacosa:vista-cambiada", (e) => {
