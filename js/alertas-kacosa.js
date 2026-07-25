@@ -9,10 +9,13 @@ const CENTROS_KACOSA = ["1000", "3000"];
 let ultimasAlertas = [];
 let periodoSeleccionado = 1;
 let mapaEmpaques = {};
+let vistaConstruida = false;
 
 function render() {
+  if (vistaConstruida) return; // ya construida: se conserva al cambiar de módulo
   const cont = document.getElementById("alertas-kacosa-contenido");
   if (!cont) return;
+  vistaConstruida = true;
 
   cont.innerHTML = `
     <div class="card">
@@ -272,8 +275,8 @@ function mostrarAlertas(alertas) {
       return;
     }
     const filtrados = datosTabla.filter(m => 
-      m.codigo.toLowerCase().includes(termino) || 
-      m.descripcion.toLowerCase().includes(termino)
+      String(m.codigo).toLowerCase().includes(termino) || 
+      String(m.descripcion).toLowerCase().includes(termino)
     );
     renderizar(filtrados);
   });
