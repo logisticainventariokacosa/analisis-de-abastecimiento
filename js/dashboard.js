@@ -1,8 +1,11 @@
 // js/dashboard.js
 import { callBridge } from "./bridge.js";
 import { TIENDAS, nombrePorId } from "./tiendas.js";
+import { crearTablaPaginada } from "./tabla-utils.js";
 
 let tiendaSeleccionada = null;
+let materialesCache = [];
+let analisisCache = null;
 
 function tiendasDelUsuario() {
   return window.KACOSA?.tiendas || [];
@@ -56,6 +59,12 @@ async function cargarAnalisis() {
   const resultadoDiv = document.getElementById("dash-resultado");
   resultadoDiv.innerHTML = `<p class="vista-sub">Cargando último análisis de ${nombrePorId(tiendaSeleccionada)}...</p>`;
 
+  // Si ya tenemos el análisis en caché, mostrarlo
+  if (analisisCache && analisisCache.tienda === tiendaSeleccionada) {
+    mostrarDashboard(analisisCache);
+    return;
+  }
+
   const resp = await callBridge("leerAnalisis", { tienda: tiendaSeleccionada });
 
   if (!resp.ok) {
@@ -75,16 +84,26 @@ async function cargarAnalisis() {
     return;
   }
 
-  const materiales = resp.materiales;
-  const totalAPedir = materiales.reduce((acc, m) => acc + Number(m.aPedir || 0), 0);
-  const quiebres = materiales.filter(m => Number(m.stockKacosa) <= 0 && Number(m.aPedir) === 0).length;
-  const porClase = { A: 0, B: 0, C: 0, D: 0 };
-  materiales.forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
+  analisisCache = {
+    tienda: tiendaSeleccionada,
+    fechaAnalisis: resp.fechaAnalisis,
+    materiales: resp.materiales
+  };
+  
+  mostrarDashboard(analisisCache);
+}
 
-  const ordenado = materiales.slice().sort((a, b) => Number(b.aPedir) - Number(a.aPedir)).slice(0, 50);
+function mostrarDashboard(analisis) {
+  const resultadoDiv = document.getElementById("dash-resultado");
+  materialesCache = analisis.materiales;
+  
+  const totalAPedir = materialesCache.reduce((acc, m) => acc + Number(m.aPedir || 0), 0);
+  const quiebres = materialesCache.filter(m => Number(m.stockKacosa) <= 0 && Number(m.aPedir) === 0).length;
+  const porClase = { A: 0, B: 0, C: 0, D: 0 };
+  materialesCache.forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
 
   resultadoDiv.innerHTML = `
-    <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${resp.fechaAnalisis || "—"}</strong></p>
+    <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${analisis.fechaAnalisis || "—"}</strong></p>
     <div class="kpi-grid">
       <div class="kpi-card verde">
         <div class="label">Total a pedir</div>
@@ -100,34 +119,144 @@ async function cargarAnalisis() {
       </div>
     </div>
     <div class="card">
-      <h3 style="margin-top:0; font-size:14px; color:var(--azul-base)">Top 50 materiales a pedir</h3>
-      <div class="table-responsive">
-        <table>
-          <thead>
-            <tr>
-              <th>Código</th>
-              <th>Descripción</th>
-              <th>Clase</th>
-              <th>A pedir</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${ordenado.map(m => `
-              <tr>
-                <td>${m.codigo}</td>
-                <td>${m.descripcion}</td>
-                <td><span class="clase-badge clase-${m.clase.toLowerCase()}">${m.clase}</span></td>
-                <td><strong>${m.aPedir}</strong></td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
+        <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Materiales a pedir</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap">
+          <input type="text" id="dash-buscar" placeholder="🔍 Buscar por código o descripción..." 
+                 style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+          <button id="dash-descargar" class="btn-primario" style="padding:8px 16px; font-size:12px; margin:0">
+            📥 Descargar Excel
+          </button>
+        </div>
       </div>
+      <div id="dash-tabla-container"></div>
     </div>
   `;
+
+  // Renderizar tabla
+  const columnas = [
+    { key: 'codigo', label: 'Código' },
+    { key: 'descripcion', label: 'Descripción' },
+    { key: 'clase', label: 'Clase' },
+    { key: 'aPedir', label: 'A pedir', numeric: true }
+  ];
+
+  const container = document.getElementById('dash-tabla-container');
+  const { renderizar } = crearTablaPaginada(container, columnas, 50);
+  
+  renderizar(materialesCache);
+
+  // Evento de búsqueda
+  document.getElementById('dash-buscar').addEventListener('input', (e) => {
+    const termino = e.target.value.toLowerCase().trim();
+    if (!termino) {
+      renderizar(materialesCache);
+      return;
+    }
+    const filtrados = materialesCache.filter(m => 
+      m.codigo.toLowerCase().includes(termino) || 
+      m.descripcion.toLowerCase().includes(termino)
+    );
+    renderizar(filtrados);
+  });
+
+  // Evento de descarga
+  document.getElementById('dash-descargar').addEventListener('click', () => {
+    descargarExcelDashboard(materialesCache, analisis);
+  });
+}
+
+function descargarExcelDashboard(materiales, analisis) {
+  if (!materiales || materiales.length === 0) {
+    alert("No hay materiales para descargar.");
+    return;
+  }
+
+  const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
+  
+  // Separar por categorías
+  const pedido = materiales.filter(m => m.aPedir > 0);
+  const noPedido = materiales.filter(m => m.aPedir === 0);
+  const pendienteStock = materiales.filter(m => m.stockKacosa <= 0 && m.aPedir === 0);
+  const sugerencias = materiales.filter(m => m.stockKacosa > 0 && m.aPedir === 0);
+  const sinRotacion = materiales.filter(m => m.stockTienda > 0 && m.aPedir === 0);
+
+  // Crear workbook con 5 pestañas
+  const wb = XLSX.utils.book_new();
+
+  // Función helper para crear hoja
+  const agregarHoja = (datos, nombre, columnas) => {
+    if (!datos || datos.length === 0) {
+      const ws = XLSX.utils.json_to_sheet([{ Mensaje: "Sin datos" }]);
+      XLSX.utils.book_append_sheet(wb, ws, nombre);
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(datos.map(d => {
+      const obj = {};
+      columnas.forEach(col => {
+        obj[col.label] = d[col.key] !== undefined ? d[col.key] : '';
+      });
+      return obj;
+    }));
+    XLSX.utils.book_append_sheet(wb, ws, nombre);
+  };
+
+  const columnasBase = [
+    { key: 'codigo', label: 'Código' },
+    { key: 'descripcion', label: 'Descripción' },
+    { key: 'clase', label: 'Clase' },
+    { key: 'ventasPeriodo', label: 'Ventas Período' },
+    { key: 'stockTienda', label: 'Stock Tienda' },
+    { key: 'stockKacosa', label: 'Stock Kacosa' },
+    { key: 'aPedir', label: 'A Pedir' }
+  ];
+
+  agregarHoja(pedido, 'A_Pedir', columnasBase);
+  agregarHoja(noPedido, 'No_Amerito_Pedido', columnasBase);
+  
+  // Pendiente por stock
+  agregarHoja(pendienteStock.map(m => ({
+    ...m,
+    pendiente: m.aPedir === 0 && m.stockKacosa <= 0 ? 'Sin stock en Kacosa' : 'Pendiente'
+  })), 'Pendiente_Stock_Kacosa', [
+    { key: 'codigo', label: 'Código' },
+    { key: 'descripcion', label: 'Descripción' },
+    { key: 'clase', label: 'Clase' },
+    { key: 'stockKacosa', label: 'Stock Kacosa' },
+    { key: 'pendiente', label: 'Estado' }
+  ]);
+
+  // Sugerencias
+  agregarHoja(sugerencias, 'Sugerencias', [
+    { key: 'codigo', label: 'Código' },
+    { key: 'descripcion', label: 'Descripción' },
+    { key: 'clase', label: 'Clase' },
+    { key: 'stockKacosa', label: 'Stock Kacosa' }
+  ]);
+
+  // Sin rotación
+  agregarHoja(sinRotacion, 'Sin_Rotacion', [
+    { key: 'codigo', label: 'Código' },
+    { key: 'descripcion', label: 'Descripción' },
+    { key: 'clase', label: 'Clase' },
+    { key: 'stockTienda', label: 'Stock Tienda' },
+    { key: 'stockKacosa', label: 'Stock Kacosa' }
+  ]);
+
+  XLSX.writeFile(wb, `Dashboard_${base}.xlsx`);
 }
 
 document.addEventListener("kacosa:usuario-listo", render);
 document.addEventListener("kacosa:vista-cambiada", (e) => {
-  if (e.detail.vista === "vista-dashboard") render();
+  if (e.detail.vista === "vista-dashboard") {
+    // Si hay análisis en caché de otro módulo, mostrarlo
+    if (window.KACOSA?.ultimoAnalisis) {
+      analisisCache = {
+        tienda: window.KACOSA.ultimoAnalisis.tienda,
+        fechaAnalisis: window.KACOSA.ultimoAnalisis.fechaAnalisis,
+        materiales: window.KACOSA.ultimoAnalisis.materiales
+      };
+    }
+    render();
+  }
 });
