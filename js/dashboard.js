@@ -6,12 +6,14 @@ import { crearTablaPaginada } from "./tabla-utils.js";
 let tiendaSeleccionada = null;
 let materialesCache = [];
 let analisisCache = null;
+let vistaConstruida = false;
 
 function tiendasDelUsuario() {
   return window.KACOSA?.tiendas || [];
 }
 
 async function render() {
+  if (vistaConstruida) return; // ya construida: se conserva al cambiar de módulo
   const cont = document.getElementById("dashboard-contenido");
   if (!cont) return;
 
@@ -20,6 +22,7 @@ async function render() {
     cont.innerHTML = `<p class="vista-sub">Cargando información del usuario...</p>`;
     return;
   }
+  vistaConstruida = true;
 
   const tieneVariasTiendas = misTiendas.includes("TODAS") || misTiendas.length > 1;
   if (!tiendaSeleccionada) {
@@ -154,8 +157,8 @@ function mostrarDashboard(analisis) {
       return;
     }
     const filtrados = materialesCache.filter(m => 
-      m.codigo.toLowerCase().includes(termino) || 
-      m.descripcion.toLowerCase().includes(termino)
+      String(m.codigo).toLowerCase().includes(termino) || 
+      String(m.descripcion).toLowerCase().includes(termino)
     );
     renderizar(filtrados);
   });
