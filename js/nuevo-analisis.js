@@ -484,8 +484,8 @@ function mostrarResultados(resultado, sugerencias) {
       return;
     }
     const filtrados = grupos.pedido.filter(m => 
-      m.codigo.toLowerCase().includes(termino) || 
-      m.descripcion.toLowerCase().includes(termino)
+      String(m.codigo).toLowerCase().includes(termino) || 
+      String(m.descripcion).toLowerCase().includes(termino)
     );
     renderizar(filtrados);
   });
@@ -493,6 +493,242 @@ function mostrarResultados(resultado, sugerencias) {
   document.getElementById("btn-descargar-excel").addEventListener("click", descargarExcelUnificado);
   document.getElementById("btn-guardar-analisis").addEventListener("click", guardarAnalisisEnSheets);
   document.getElementById("btn-enviar-correo").addEventListener("click", enviarCorreo);
+}
+
+/**
+ * Valida que cada archivo tenga el/los centro(s) correctos:
+ * - Ventas: un único centro, igual al de la tienda seleccionada.
+ * - Stock tienda: un único centro, igual al de la tienda seleccionada.
+ * - Stock Kacosa: solo centros 1000 y/o 3000, ningún otro.
+ */
+function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroTienda) {
+  const extraerCentros = (filas) =>
+    new Set(filas.map(f => String(f["Centro"] || "").trim()).filter(Boolean));
+
+  const centrosVentas = extraerCentros(filasVentas);
+  if (centrosVentas.size === 0) {
+    return "El archivo de ventas no tiene datos de Centro reconocibles.";
+  }
+  if (centrosVentas.size > 1) {
+    return `El archivo de ventas contiene más de un centro (${[...centrosVentas].join(", ")}). Debe contener un único centro, el de la tienda seleccionada.`;
+  }
+  const centroVentasDetectado = [...centrosVentas][0];
+  if (centroVentasDetectado !== centroTienda) {
+    return `El archivo de ventas corresponde al centro ${centroVentasDetectado}, pero seleccionaste una tienda con centro ${centroTienda}. Verifica que subiste el archivo correcto.`;
+  }
+
+  const centrosStockTienda = extraerCentros(filasStockTienda);
+  if (centrosStockTienda.size === 0) {
+    return "El archivo de stock de la tienda no tiene datos de Centro reconocibles.";
+  }
+  if (centrosStockTienda.size > 1) {
+    return `El archivo de stock de la tienda contiene más de un centro (${[...centrosStockTienda].join(", ")}). Debe contener un único centro.`;
+  }
+  const centroStockDetectado = [...centrosStockTienda][0];
+  if (centroStockDetectado !== centroTienda) {
+    return `El archivo de stock de tienda corresponde al centro ${centroStockDetectado}, pero seleccionaste una tienda con centro ${centroTienda}. Verifica que subiste el archivo correcto.`;
+  }
+
+  const centrosStockKacosa = extraerCentros(filasStockKacosa);
+  if (centrosStockKacosa.size === 0) {
+    return "El archivo de stock de Kacosa no tiene datos de Centro reconocibles.";
+  }
+  const centrosInvalidos = [...centrosStockKacosa].filter(c => !CENTROS_KACOSA.includes(c));
+  if (centrosInvalidos.length > 0) {
+    return `El archivo de stock de Kacosa contiene centro(s) que no pertenecen a Kacosa (${centrosInvalidos.join(", ")}). Kacosa solo puede ser 1000 y/o 3000.`;
+  }
+
+  return null; // todo válido
+}
+
+/**
+ * Anexa al resultado los materiales de la base de Alta Rotación que:
+ * - NO quedaron en el resultado del cálculo normal
+ * - SÍ tienen stock disponible en Kacosa
+ * - NO tienen stock en la tienda
+ * Se agregan por la cantidad mínima de empaque.
+ */
+function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRotacion, periodoAnalizado) {
+  const codigosEnResultado = new Set(resultado.map(m => m.codigo));
+  const anexados = [];
+
+  altaRotacion.forEach(m => {
+    const codigo = String(m.codigo);
+    if (codigosEnResultado.has(codigo)) return;
+
+    const infoKacosa = stockKacosa[codigo];
+    const stockKacosaDisp = infoKacosa ? infoKacosa.stockDisponible : 0;
+    if (stockKacosaDisp <= 0) return;
+
+    const infoTienda = stockTienda[codigo];
+    const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
+    if (stockTiendaDisp > 0) return; // sí hay en tienda, no hace falta anexarlo forzado
+
+    const empaque = Number(m.empaque) || 1;
+    const aPedir = Math.min(empaque, stockKacosaDisp);
+
+    resultado.push({
+      codigo,
+      descripcion: m.descripcion,
+      clase: m.clase,
+      ventasPeriodo: 0,
+      stockTienda: stockTiendaDisp,
+      stockKacosa: stockKacosaDisp,
+      aPedir,
+      aPedirIdeal: aPedir,
+      pendiente: 0,
+      empaque,
+      periodoAnalizado
+    });
+    anexados.push(codigo);
+  });
+
+  return { resultadoConAnexos: resultado, anexados };
+}
+
+/**
+ * Genera el reporte de sugerencias: materiales con stock disponible en Kacosa
+ * que NO están en el resultado del a pedir, NO están en Alta Rotación, y
+ * NO tienen stock en la tienda.
+ */
+function generarSugerencias(resultado, stockTienda, stockKacosa, altaRotacion) {
+  const codigosEnResultado = new Set(resultado.map(m => m.codigo));
+  const codigosAltaRotacion = new Set(altaRotacion.map(m => String(m.codigo)));
+
+  return Object.values(stockKacosa).filter(m => {
+    if (m.stockDisponible <= 0) return false;
+    if (codigosEnResultado.has(m.codigo)) return false;
+    if (codigosAltaRotacion.has(m.codigo)) return false;
+    const infoTienda = stockTienda[m.codigo];
+    const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
+    if (stockTiendaDisp > 0) return false;
+    return true;
+  }).map(m => ({
+    codigo: m.codigo,
+    descripcion: m.descripcion,
+    unidadBase: m.unidadBase,
+    stockKacosa: m.stockDisponible
+  }));
+}
+
+/**
+ * Materiales con stock disponible en la TIENDA que NO tuvieron NINGÚN
+ * movimiento de venta/devolución en todo el periodo analizado — para
+ * control de mercancía sin rotación (dinero parado en el estante).
+ */
+function generarSinRotacion(stockKacosa, stockTienda, ventasProcesadas) {
+  const codigosConMovimiento = new Set(Object.keys(ventasProcesadas.porMaterial));
+
+  return Object.values(stockTienda).filter(m => {
+    if (m.stockDisponible <= 0) return false;
+    if (codigosConMovimiento.has(m.codigo)) return false;
+    return true;
+  }).map(m => {
+    const infoKacosa = stockKacosa[m.codigo];
+    return {
+      codigo: m.codigo,
+      descripcion: m.descripcion,
+      unidadBase: m.unidadBase,
+      stockTienda: m.stockDisponible,
+      stockKacosa: infoKacosa ? infoKacosa.stockDisponible : 0
+    };
+  });
+}
+
+function clasificarEnCuatroGrupos(resultado, sugerencias) {
+  const pedido = resultado.filter(m => m.aPedir > 0);
+  const noPedido = resultado.filter(m => m.aPedirIdeal === 0);
+  const pendienteStock = resultado.filter(m => m.pendiente > 0);
+  return { pedido, noPedido, pendienteStock, sugerencias };
+}
+
+/* ============ Guardar en Google Sheets ============ */
+
+async function guardarAnalisisEnSheets() {
+  const estadoAcciones = document.getElementById("na-estado-acciones");
+  estadoAcciones.textContent = "Guardando en Google Sheets...";
+
+  const resp = await callBridge("guardarAnalisis", {
+    tienda: estado.tiendaSeleccionada,
+    fechaAnalisis: estado.fechaAnalisis,
+    materiales: estado.resultadoFinal
+  });
+
+  estadoAcciones.textContent = resp.ok
+    ? `Guardado correctamente. ${resp.altaRotacionAgregados > 0 ? `(${resp.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
+    : "Error al guardar: " + resp.error;
+}
+
+/* ============ Enviar por correo (1 adjunto con 5 pestañas) ============ */
+
+async function enviarCorreo() {
+  const estadoAcciones = document.getElementById("na-estado-acciones");
+  estadoAcciones.textContent = "Preparando el archivo...";
+
+  const wb = construirWorkbookParaEnvio();
+  const archivos = [{
+    nombre: `Analisis_${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}.xlsx`,
+    base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
+  }];
+
+  const totalAPedir = estado.grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
+
+  estadoAcciones.textContent = "Enviando correo...";
+  const resp = await callBridge("sendReport", {
+    tienda: estado.tiendaSeleccionada,
+    fechaAnalisis: estado.fechaAnalisis,
+    resumen: {
+      totalAPedir,
+      valorEstimado: totalAPedir,
+      quiebresKacosa: estado.grupos.pendienteStock.length
+    },
+    archivos
+  });
+
+  estadoAcciones.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
+}
+
+/** Construye el mismo workbook de 5 pestañas que descargarExcelUnificado, pero sin descargarlo (para adjuntar al correo). */
+function construirWorkbookParaEnvio() {
+  const { pedido, noPedido, pendienteStock, sugerencias } = estado.grupos;
+  const wb = XLSX.utils.book_new();
+
+  const agregarHoja = (datos, nombre, columnas) => {
+    if (!datos || datos.length === 0) {
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Mensaje: "Sin datos" }]), nombre);
+      return;
+    }
+    const ws = XLSX.utils.json_to_sheet(datos.map(d => {
+      const obj = {};
+      columnas.forEach(col => { obj[col.label] = d[col.key] !== undefined ? d[col.key] : ''; });
+      return obj;
+    }));
+    XLSX.utils.book_append_sheet(wb, ws, nombre);
+  };
+
+  const columnasBase = [
+    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' },
+    { key: 'clase', label: 'Clase' }, { key: 'ventasPeriodo', label: 'Ventas Período' },
+    { key: 'stockTienda', label: 'Stock Tienda' }, { key: 'stockKacosa', label: 'Stock Kacosa' },
+    { key: 'aPedir', label: 'A Pedir' }
+  ];
+
+  agregarHoja(pedido, 'A_Pedir', columnasBase);
+  agregarHoja(noPedido, 'No_Amerito_Pedido', columnasBase);
+  agregarHoja(pendienteStock.map(m => ({ ...m, pendiente: m.aPedirIdeal - m.aPedir })), 'Pendiente_Stock_Kacosa', [
+    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' }, { key: 'clase', label: 'Clase' },
+    { key: 'aPedirIdeal', label: 'A Pedir Ideal' }, { key: 'aPedir', label: 'A Pedir Real' },
+    { key: 'pendiente', label: 'Pendiente' }, { key: 'stockKacosa', label: 'Stock Kacosa' }
+  ]);
+  agregarHoja(sugerencias, 'Sugerencias', [
+    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' }, { key: 'stockKacosa', label: 'Stock Kacosa' }
+  ]);
+  agregarHoja((estado.sinRotacion || []), 'Sin_Rotacion', [
+    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' },
+    { key: 'stockTienda', label: 'Stock Tienda' }, { key: 'stockKacosa', label: 'Stock Kacosa' }
+  ]);
+
+  return wb;
 }
 
 function descargarExcelUnificado() {
@@ -559,12 +795,6 @@ function descargarExcelUnificado() {
 
   XLSX.writeFile(wb, `Analisis_${base}.xlsx`);
 }
-
-// Las funciones auxiliares (validarCentros, anexarAltaRotacionFaltante, 
-// generarSugerencias, generarSinRotacion, clasificarEnCuatroGrupos, 
-// guardarAnalisisEnSheets, enviarCorreo) mantienen su implementación original
-
-// ... (resto de funciones auxiliares sin cambios)
 
 document.addEventListener("kacosa:vista-cambiada", (e) => {
   if (e.detail.vista === "vista-nuevo-analisis") render();
