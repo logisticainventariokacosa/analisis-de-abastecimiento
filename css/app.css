@@ -1,32 +1,4 @@
 /* css/app.css - Shell de la aplicación (sidebar, header, vistas) */
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
-
-:root {
-  --azul-base: #0F1A2E;
-  --azul-claro: #1E2F47;
-  --azul-medio: #2A4060;
-  --azul-hover: #1A2D48;
-  --fondo: #F0F2F6;
-  --blanco: #FFFFFF;
-  --ambar: #E8A03D;
-  --ambar-oscuro: #D18A2A;
-  --ambar-claro: #F5D49A;
-  --verde-kpi: #1EA672;
-  --verde-claro: #D4F5E8;
-  --rojo-alerta: #D94A3D;
-  --rojo-claro: #FDE8E5;
-  --texto-principal: #121926;
-  --texto-secundario: #5E6A7A;
-  --texto-claro: #8A95A5;
-  --borde: #E5E8ED;
-  --borde-focus: #C0C8D4;
-  --radio: 12px;
-  --radio-peq: 8px;
-  --sombra: 0 4px 20px rgba(15, 26, 46, 0.06), 0 1px 3px rgba(15, 26, 46, 0.04);
-  --sombra-hover: 0 8px 30px rgba(15, 26, 46, 0.1);
-  --sombra-sidebar: 4px 0 24px rgba(15, 26, 46, 0.12);
-  --transicion: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -36,12 +8,19 @@ html, body {
   overflow-x: hidden;
 }
 
-body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--fondo);
-  color: var(--texto-principal);
-  -webkit-font-smoothing: antialiased;
+.oculto { display: none !important; }
+
+/* Overlay del menú lateral en móvil (nav.js añade la clase .visible) */
+.overlay-sidebar {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 26, 46, 0.45);
+  z-index: 25;
+}
+
+.overlay-sidebar.visible {
+  display: block;
 }
 
 h1, h2, h3, .display {
@@ -304,6 +283,11 @@ h1, h2, h3, .display {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
 .vista h2 {
   font-size: 24px;
   color: var(--azul-base);
@@ -440,6 +424,12 @@ h1, h2, h3, .display {
   box-shadow: 0 0 0 4px rgba(42, 64, 96, 0.08);
 }
 
+textarea.input-modern {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
 .input-modern:hover {
   border-color: var(--borde-focus);
 }
@@ -452,19 +442,22 @@ h1, h2, h3, .display {
   padding-right: 40px;
 }
 
-.input-modern[type="range"] {
+.input-modern[type="range"],
+input[type="range"].input-modern {
+  width: 100%;
   padding: 0;
   border: none;
-  background: none;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
   background: var(--borde);
   border-radius: 2px;
   outline: none;
+  cursor: pointer;
 }
 
-.input-modern[type="range"]::-webkit-slider-thumb {
+.input-modern[type="range"]::-webkit-slider-thumb,
+input[type="range"].input-modern::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -475,11 +468,13 @@ h1, h2, h3, .display {
   box-shadow: 0 2px 8px rgba(232, 160, 61, 0.3);
 }
 
-.input-modern[type="range"]::-webkit-slider-thumb:hover {
+.input-modern[type="range"]::-webkit-slider-thumb:hover,
+input[type="range"].input-modern::-webkit-slider-thumb:hover {
   transform: scale(1.1);
 }
 
-.input-modern[type="range"]::-moz-range-thumb {
+.input-modern[type="range"]::-moz-range-thumb,
+input[type="range"].input-modern::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -663,20 +658,42 @@ th {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  position: relative;
+}
+
+th:hover {
+  color: var(--azul-base);
 }
 
 td {
   padding: 10px 8px;
   border-bottom: 1px solid var(--borde);
   color: var(--texto-principal);
+  vertical-align: middle;
 }
 
 tbody tr:hover {
   background: var(--fondo);
 }
 
+/* Estilos para paginación */
+.btn-pagina {
+  transition: var(--transicion);
+}
+
+.btn-pagina:hover:not([disabled]) {
+  background: var(--azul-base) !important;
+  color: #fff !important;
+}
+
+.btn-pagina[disabled] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* --- Botones --- */
 .btn-primario {
+  width: auto;
   padding: 12px 24px;
   background: linear-gradient(135deg, var(--ambar), var(--ambar-oscuro));
   color: var(--azul-base);
@@ -732,6 +749,15 @@ tbody tr:hover {
   flex: 0 1 auto;
   min-width: 140px;
   margin-top: 0;
+}
+
+.btn-periodo {
+  transition: var(--transicion);
+}
+
+.btn-periodo:hover:not(.activo) {
+  background: var(--fondo);
+  border-color: var(--borde-focus);
 }
 
 /* --- Estado / feedback --- */
