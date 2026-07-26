@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="css/styles.css">
 <link rel="stylesheet" href="css/app.css">
 <link rel="stylesheet" href="css/loader.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 </head>
 <body>
 
@@ -92,6 +92,23 @@
         </section>
 
       </div>
+
+      <footer class="app-footer">
+        <div class="app-footer-marca">
+          <div class="app-footer-titulo">KACOSA · Abastecimiento</div>
+          <div class="app-footer-subtitulo">Sistema de Análisis de Abastecimiento e Inventarios</div>
+        </div>
+        <div class="app-footer-linea">
+          <span>© <span id="footer-anio">2026</span> — Logística &amp; Abastecimiento</span>
+          <span class="app-footer-punto">·</span>
+          <span>Desarrollado por <strong>Derwin Rojas</strong></span>
+        </div>
+        <div class="app-footer-reloj">
+          <span id="footer-fecha">--/--/----</span>
+          <span class="app-footer-separador">|</span>
+          <span id="footer-hora">--:--</span><span id="footer-segundos" class="app-footer-segundos">:--</span>
+        </div>
+      </footer>
     </div>
   </div>
 
@@ -100,5 +117,6 @@
   <script type="module" src="js/alertas-kacosa.js"></script>
   <script type="module" src="js/nuevo-analisis.js"></script>
   <script type="module" src="js/chat.js"></script>
+  <script type="module" src="js/footer-reloj.js"></script>
 </body>
 </html>
