@@ -4,6 +4,8 @@ import { callBridge } from "./bridge.js";
 import { crearTablaPaginada } from "./tabla-utils.js";
 import { nombrePorId, TIENDAS } from "./tiendas.js";
 import { obtenerInfoPaquete, cargarPaquetes } from "./paquetes.js";
+import { notificarExito } from "./notificaciones.js";
+import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.js";
 
 const CENTROS_KACOSA = ["1000", "3000"];
 let ultimasAlertas = [];
@@ -305,37 +307,52 @@ function mostrarAlertas(alertas) {
 function mostrarDistribucion(alerta) {
   const distribucion = alerta.distribucionPorTienda || {};
   const total = Object.values(distribucion).reduce((a, b) => a + b, 0);
-  
+  const maximo = Math.max(...Object.values(distribucion), 1);
+
+  const coloresBarras = ['#1B2A41', '#E8A03D', '#2F8F6E', '#4A6FA5', '#C4432B', '#8B6BAE', '#2596BE'];
+
   const modal = document.createElement('div');
   modal.style.cssText = `
     position: fixed; inset:0; background:rgba(0,0,0,0.6); z-index:60;
     display:flex; align-items:center; justify-content:center; padding:20px;
     animation: fadeIn 0.2s ease;
   `;
-  
+
+  const filasOrdenadas = Object.entries(distribucion).sort((a, b) => b[1] - a[1]);
+
   modal.innerHTML = `
-    <div style="background:var(--blanco); border-radius:var(--radio); max-width:500px; width:100%; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-      <h3 style="margin:0 0 12px; color:var(--azul-base)">Distribución por tienda</h3>
-      <p style="font-size:13px; color:var(--texto-secundario); margin-bottom:16px">
-        <strong>${alerta.codigo}</strong> - ${alerta.descripcion}<br>
-        Total a distribuir: <strong>${alerta.proyeccionCompra}</strong> unidades (${alerta.empaque} por paquete)
+    <div style="background:var(--blanco); border-radius:var(--radio); max-width:520px; width:100%; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+      <h3 style="margin:0 0 12px; color:var(--azul-base)">📊 Distribución sugerida por tienda</h3>
+      <p style="font-size:13px; color:var(--texto-secundario); margin-bottom:18px">
+        <strong>${alerta.codigo}</strong> — ${alerta.descripcion}<br>
+        Total a distribuir: <strong style="color:var(--azul-base)">${alerta.proyeccionCompra}</strong> unidades (empaque de ${alerta.empaque})
       </p>
-      <div style="border-top:1px solid var(--borde); padding-top:12px">
-        ${Object.entries(distribucion).map(([tienda, cantidad]) => `
-          <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--borde)">
-            <span>${nombrePorId(tienda)}</span>
-            <span style="font-weight:600">${cantidad}</span>
-          </div>
-        `).join('')}
-        <div style="display:flex; justify-content:space-between; padding:8px 0; font-weight:700; border-top:2px solid var(--azul-base)">
-          <span>TOTAL</span>
-          <span>${total}</span>
-        </div>
+      <div style="display:flex; flex-direction:column; gap:12px">
+        ${filasOrdenadas.map(([tienda, cantidad], idx) => {
+          const pct = total > 0 ? Math.round((cantidad / total) * 100) : 0;
+          const anchoBarra = Math.max(4, Math.round((cantidad / maximo) * 100));
+          const color = coloresBarras[idx % coloresBarras.length];
+          return `
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:4px">
+                <span style="font-weight:600">${nombrePorId(tienda)}</span>
+                <span><strong>${cantidad}</strong> <span style="color:var(--texto-claro); font-size:11px">(${pct}%)</span></span>
+              </div>
+              <div style="background:var(--fondo); border-radius:6px; height:14px; overflow:hidden">
+                <div style="width:${anchoBarra}%; height:100%; background:${color}; border-radius:6px; transition:width .3s"></div>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <div style="display:flex; justify-content:space-between; padding:12px 0 0; margin-top:14px; font-weight:700; border-top:2px solid var(--azul-base)">
+        <span>TOTAL</span>
+        <span>${total}</span>
       </div>
       <button id="cerrar-modal-dist" style="margin-top:16px; padding:10px 24px; background:var(--azul-base); color:#fff; border:none; border-radius:var(--radio-peq); cursor:pointer; width:100%; font-weight:600">Cerrar</button>
     </div>
   `;
-  
+
   document.body.appendChild(modal);
   document.getElementById('cerrar-modal-dist').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
@@ -343,24 +360,54 @@ function mostrarDistribucion(alerta) {
 
 function descargarAlertasExcel(alertas) {
   const filas = alertas.map(a => ({
-    Codigo: a.codigo,
-    Descripcion: a.descripcion,
-    Clase: a.clase,
-    Stock_Kacosa: a.stockKacosa,
-    A_Pedir_Todas_Tiendas: a.totalAPedir,
-    Proyeccion_Compra: a.proyeccionCompra,
-    Empaque: a.empaque,
-    Alerta: a.tipo === "SIN_STOCK" ? "Sin stock" : "Stock bajo",
-    Distribucion: Object.entries(a.distribucionPorTienda || {})
+    codigo: a.codigo,
+    descripcion: a.descripcion,
+    clase: a.clase,
+    stockKacosa: a.stockKacosa,
+    totalAPedir: a.totalAPedir,
+    proyeccionCompra: a.proyeccionCompra,
+    empaque: a.empaque,
+    tipo: a.tipo,
+    alertaTexto: a.tipo === "SIN_STOCK" ? "Sin stock" : "Stock bajo",
+    distribucion: Object.entries(a.distribucionPorTienda || {})
       .map(([t, c]) => `${nombrePorId(t)}: ${c}`)
       .join("; ")
   }));
-  const ws = XLSX.utils.json_to_sheet(filas);
+
+  const sinStock = filas.filter(f => f.tipo === "SIN_STOCK").length;
+  const stockBajo = filas.filter(f => f.tipo === "STOCK_BAJO").length;
+  const totalProyeccion = filas.reduce((acc, f) => acc + (Number(f.proyeccionCompra) || 0), 0);
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Alertas_Kacosa");
+
+  const wsResumen = construirHojaResumen(
+    "Alertas Kacosa — Materiales de Alta Rotación",
+    [
+      { label: "Total de alertas", valor: filas.length, color: "FF1B2A41" },
+      { label: "Sin stock en Kacosa", valor: sinStock, color: "FFC4432B" },
+      { label: "Stock insuficiente", valor: stockBajo, color: "FFE8A03D" },
+      { label: "Proyección de compra total", valor: totalProyeccion, color: "FF2F8F6E" }
+    ],
+    [`Generado el ${new Date().toLocaleDateString("es-VE")}.`, "Sistema de Abastecimiento KACOSA."]
+  );
+  XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
+
+  const wsAlertas = construirHojaEstilizada(filas, [
+    { key: 'codigo', label: 'Código', ancho: 14 },
+    { key: 'descripcion', label: 'Descripción', ancho: 36 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
+    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 },
+    { key: 'totalAPedir', label: 'A Pedir (todas)', ancho: 14 },
+    { key: 'proyeccionCompra', label: 'Proyección Compra', ancho: 16 },
+    { key: 'empaque', label: 'Empaque', ancho: 10 },
+    { key: 'alertaTexto', label: 'Alerta', ancho: 12 },
+    { key: 'distribucion', label: 'Distribución por Tienda', ancho: 50 }
+  ], { colorearPorAlerta: true });
+  XLSX.utils.book_append_sheet(wb, wsAlertas, "Alertas_Kacosa");
 
   const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
   XLSX.writeFile(wb, `Alertas_Kacosa_${fecha}.xlsx`);
+  notificarExito(`Se descargó el Excel con ${filas.length} alerta(s) y proyección de compra por tienda.`, { titulo: "Excel descargado" });
 }
 
 document.addEventListener("kacosa:vista-cambiada", (e) => {
