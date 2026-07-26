@@ -2,6 +2,8 @@
 import { callBridge } from "./bridge.js";
 import { TIENDAS, nombrePorId } from "./tiendas.js";
 import { crearTablaPaginada } from "./tabla-utils.js";
+import { notificarExito } from "./notificaciones.js";
+import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.js";
 
 let tiendaSeleccionada = null;
 let materialesCache = [];
@@ -176,77 +178,67 @@ function descargarExcelDashboard(materiales, analisis) {
   }
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
-  
-  // Separar por categorías
+
+  // Separar por categorías (aproximado con los campos guardados en Sheets)
   const pedido = materiales.filter(m => m.aPedir > 0);
   const noPedido = materiales.filter(m => m.aPedir === 0);
   const pendienteStock = materiales.filter(m => m.stockKacosa <= 0 && m.aPedir === 0);
   const sugerencias = materiales.filter(m => m.stockKacosa > 0 && m.aPedir === 0);
   const sinRotacion = materiales.filter(m => m.stockTienda > 0 && m.aPedir === 0);
 
-  // Crear workbook con 5 pestañas
+  const totalAPedir = pedido.reduce((acc, m) => acc + Number(m.aPedir || 0), 0);
+  const porClase = { A: 0, B: 0, C: 0, D: 0 };
+  materiales.forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
+
   const wb = XLSX.utils.book_new();
 
-  // Función helper para crear hoja
-  const agregarHoja = (datos, nombre, columnas) => {
-    if (!datos || datos.length === 0) {
-      const ws = XLSX.utils.json_to_sheet([{ Mensaje: "Sin datos" }]);
-      XLSX.utils.book_append_sheet(wb, ws, nombre);
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(datos.map(d => {
-      const obj = {};
-      columnas.forEach(col => {
-        obj[col.label] = d[col.key] !== undefined ? d[col.key] : '';
-      });
-      return obj;
-    }));
-    XLSX.utils.book_append_sheet(wb, ws, nombre);
-  };
+  const wsResumen = construirHojaResumen(
+    `Dashboard — ${nombrePorId(analisis.tienda)}`,
+    [
+      { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
+      { label: "Materiales a pedir", valor: pedido.length, color: "FF2F8F6E" },
+      { label: "Total unidades a pedir", valor: totalAPedir, color: "FF1B2A41" },
+      { label: "Sin stock en Kacosa", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "Clase A", valor: porClase.A, color: "FF2F8F6E" },
+      { label: "Clase B", valor: porClase.B, color: "FF4A6FA5" },
+      { label: "Clase C", valor: porClase.C, color: "FFE8A03D" },
+      { label: "Clase D", valor: porClase.D, color: "FF6B7280" }
+    ],
+    ["Generado desde el Dashboard del sistema de Abastecimiento KACOSA."]
+  );
+  XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
   const columnasBase = [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'ventasPeriodo', label: 'Ventas Período' },
-    { key: 'stockTienda', label: 'Stock Tienda' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' },
-    { key: 'aPedir', label: 'A Pedir' }
+    { key: 'codigo', label: 'Código', ancho: 14 },
+    { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
+    { key: 'ventasPeriodo', label: 'Ventas Período', ancho: 14 },
+    { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 },
+    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 },
+    { key: 'aPedir', label: 'A Pedir', ancho: 10 }
   ];
 
-  agregarHoja(pedido, 'A_Pedir', columnasBase);
-  agregarHoja(noPedido, 'No_Amerito_Pedido', columnasBase);
-  
-  // Pendiente por stock
-  agregarHoja(pendienteStock.map(m => ({
-    ...m,
-    pendiente: m.aPedir === 0 && m.stockKacosa <= 0 ? 'Sin stock en Kacosa' : 'Pendiente'
-  })), 'Pendiente_Stock_Kacosa', [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' },
-    { key: 'pendiente', label: 'Estado' }
-  ]);
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasBase, { colorearPorClase: true }), "A_Pedir");
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasBase, { colorearPorClase: true }), "No_Amerito_Pedido");
 
-  // Sugerencias
-  agregarHoja(sugerencias, 'Sugerencias', [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pendienteStock, [
+    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+  ], { colorearPorClase: true }), "Pendiente_Stock_Kacosa");
 
-  // Sin rotación
-  agregarHoja(sinRotacion, 'Sin_Rotacion', [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'stockTienda', label: 'Stock Tienda' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
+    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+  ]), "Sugerencias");
+
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sinRotacion, [
+    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 },
+    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+  ]), "Sin_Rotacion");
 
   XLSX.writeFile(wb, `Dashboard_${base}.xlsx`);
+  notificarExito("El archivo Excel del Dashboard se descargó correctamente.", { titulo: "Excel descargado" });
 }
 
 document.addEventListener("kacosa:usuario-listo", render);
