@@ -8,6 +8,9 @@ import { detectarCandidatosLocal, confirmarConGemini, fusionarDuplicados } from 
 import { TIENDAS, nombrePorId } from "./tiendas.js";
 import { callBridge } from "./bridge.js";
 import { crearTablaPaginada } from "./tabla-utils.js";
+import { leerXLSXGenerico, procesarPendientesSync, restarPendientesSync } from "./pendientes-sync-parser.js";
+import { notificarExito } from "./notificaciones.js";
+import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.js";
 
 const CENTROS_KACOSA = ["1000", "3000"];
 
@@ -110,6 +113,20 @@ function render() {
         </div>
       </div>
 
+      <!-- Pendientes por sincronizar (opcional) -->
+      <div style="margin-top:16px">
+        <label class="form-label" for="na-pendientes-sync">Materiales pendientes por sincronizar <span style="color:var(--texto-claro); font-weight:400">(opcional)</span></label>
+        <div class="file-input-wrapper" id="file-wrapper-pendientes-sync">
+          <span class="file-icon">🔄</span>
+          <div class="file-info">
+            <div class="file-name" id="file-name-pendientes-sync">Seleccionar archivo</div>
+            <div class="file-hint">.xlsx propio · Columnas: Material, Cantidad_por_sincronizar</div>
+          </div>
+          <span class="file-status empty" id="file-status-pendientes-sync">Sin usar</span>
+          <input type="file" id="na-pendientes-sync" accept=".xlsx,.xls">
+        </div>
+      </div>
+
       <!-- Período -->
       <div class="form-row" style="margin-top:16px">
         <div>
@@ -152,7 +169,8 @@ function render() {
   const fileInputs = [
     { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas' },
     { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda' },
-    { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa' }
+    { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa' },
+    { id: 'na-pendientes-sync', nameId: 'file-name-pendientes-sync', statusId: 'file-status-pendientes-sync', wrapperId: 'file-wrapper-pendientes-sync' }
   ];
 
   fileInputs.forEach(({ id, nameId, statusId, wrapperId }) => {
@@ -250,6 +268,18 @@ async function ejecutarAnalisis() {
     const ventasProcesadas = procesarVentas(filasVentas);
     const stockTienda = agruparStock(filasStockTienda, [centroTienda]);
     const stockKacosa = agruparStock(filasStockKacosa, CENTROS_KACOSA);
+
+    // Archivo opcional de pendientes por sincronizar
+    const archivoPendientesSync = document.getElementById("na-pendientes-sync").files[0];
+    if (archivoPendientesSync) {
+      estadoTexto.textContent = "Aplicando pendientes por sincronizar...";
+      const filasPendientes = await leerXLSXGenerico(archivoPendientesSync);
+      const mapaPendientes = procesarPendientesSync(filasPendientes);
+      const afectados = restarPendientesSync(stockTienda, mapaPendientes);
+      if (afectados > 0) {
+        estadoTexto.textContent = `Se ajustó el stock de ${afectados} material(es) por pendientes de sincronización.`;
+      }
+    }
 
     estadoTexto.textContent = "Cargando lista de paquetes...";
     await cargarPaquetes();
@@ -393,6 +423,34 @@ async function finalizarCalculo(gruposConfirmados) {
   
   mostrarResultados(resultado, sugerencias);
 
+  // Auto-guardado: se guarda de inmediato en Google Sheets, reemplazando el
+  // análisis anterior de esta tienda, sin esperar a que el usuario presione nada.
+  const estadoAcciones = document.getElementById("na-estado-acciones");
+  if (estadoAcciones) estadoAcciones.textContent = "Guardando automáticamente en Google Sheets...";
+  const respGuardado = await callBridge("guardarAnalisis", {
+    tienda: estado.tiendaSeleccionada,
+    fechaAnalisis: estado.fechaAnalisis,
+    materiales: estado.resultadoFinal
+  });
+  if (estadoAcciones) {
+    estadoAcciones.textContent = respGuardado.ok
+      ? `✓ Guardado automáticamente en Google Sheets. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
+      : "⚠️ No se pudo guardar automáticamente: " + respGuardado.error;
+  }
+
+  const totalAPedirNotif = estado.grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
+  if (respGuardado.ok) {
+    notificarExito(
+      `Se procesaron ${resultado.length} material(es) — ${totalAPedirNotif} unidades a pedir. El análisis quedó guardado automáticamente en Google Sheets.`,
+      { titulo: "Análisis completado" }
+    );
+  } else {
+    notificarExito(
+      `El análisis se calculó correctamente, pero hubo un problema al guardarlo en Sheets: ${respGuardado.error}. Puedes intentar "Volver a guardar" más abajo.`,
+      { titulo: "Análisis completado con advertencia", icono: "⚠️", segundos: 6 }
+    );
+  }
+
   document.dispatchEvent(new CustomEvent("kacosa:analisis-listo", { detail: window.KACOSA.ultimoAnalisis }));
 }
 
@@ -452,7 +510,7 @@ function mostrarResultados(resultado, sugerencias) {
 
       <div class="btn-group">
         <button id="btn-descargar-excel" class="btn-primario">📥 Descargar Excel (1 archivo, 5 pestañas)</button>
-        <button id="btn-guardar-analisis" class="btn-secundario">💾 Guardar análisis</button>
+        <button id="btn-guardar-analisis" class="btn-secundario">🔄 Volver a guardar</button>
         <button id="btn-enviar-correo" class="btn-secundario">📧 Enviar por correo</button>
       </div>
       <p id="na-estado-acciones" class="estado-texto" style="margin-top:10px"></p>
@@ -657,6 +715,12 @@ async function guardarAnalisisEnSheets() {
   estadoAcciones.textContent = resp.ok
     ? `Guardado correctamente. ${resp.altaRotacionAgregados > 0 ? `(${resp.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
     : "Error al guardar: " + resp.error;
+
+  if (resp.ok) {
+    notificarExito("El análisis se volvió a guardar correctamente en Google Sheets.", { titulo: "Guardado" });
+  } else {
+    notificarExito("No se pudo guardar: " + resp.error, { titulo: "Error", icono: "⚠️", segundos: 6 });
+  }
 }
 
 /* ============ Enviar por correo (1 adjunto con 5 pestañas) ============ */
@@ -665,7 +729,7 @@ async function enviarCorreo() {
   const estadoAcciones = document.getElementById("na-estado-acciones");
   estadoAcciones.textContent = "Preparando el archivo...";
 
-  const wb = construirWorkbookParaEnvio();
+  const wb = construirWorkbookCompleto();
   const archivos = [{
     nombre: `Analisis_${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}.xlsx`,
     base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
@@ -686,114 +750,87 @@ async function enviarCorreo() {
   });
 
   estadoAcciones.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
+
+  if (resp.ok) {
+    notificarExito("El correo con el archivo Excel (Resumen + 5 pestañas) se envió correctamente al departamento de Abastecimiento.", { titulo: "Correo enviado" });
+  } else {
+    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: "⚠️", segundos: 6 });
+  }
 }
 
-/** Construye el mismo workbook de 5 pestañas que descargarExcelUnificado, pero sin descargarlo (para adjuntar al correo). */
-function construirWorkbookParaEnvio() {
+/** Construye el workbook completo (Resumen + 5 pestañas) con formato profesional. Se usa tanto para descargar como para adjuntar al correo. */
+function construirWorkbookCompleto() {
   const { pedido, noPedido, pendienteStock, sugerencias } = estado.grupos;
   const wb = XLSX.utils.book_new();
 
-  const agregarHoja = (datos, nombre, columnas) => {
-    if (!datos || datos.length === 0) {
-      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ Mensaje: "Sin datos" }]), nombre);
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(datos.map(d => {
-      const obj = {};
-      columnas.forEach(col => { obj[col.label] = d[col.key] !== undefined ? d[col.key] : ''; });
-      return obj;
-    }));
-    XLSX.utils.book_append_sheet(wb, ws, nombre);
-  };
+  const totalAPedir = pedido.reduce((acc, m) => acc + m.aPedir, 0);
+  const porClase = { A: 0, B: 0, C: 0, D: 0 };
+  [...pedido, ...noPedido, ...pendienteStock].forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
+
+  // --- Hoja Resumen (mini-dashboard con las cifras clave) ---
+  const wsResumen = construirHojaResumen(
+    `Análisis de Abastecimiento — ${nombrePorId(estado.tiendaSeleccionada)}`,
+    [
+      { label: "Fecha de análisis", valor: estado.fechaAnalisis },
+      { label: "Materiales a pedir", valor: pedido.length, color: "FF2F8F6E" },
+      { label: "Total unidades a pedir", valor: totalAPedir, color: "FF1B2A41" },
+      { label: "Pendiente por falta de stock", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "No ameritaron pedido", valor: noPedido.length },
+      { label: "Sugerencias adicionales", valor: sugerencias.length },
+      { label: "Sin rotación en tienda", valor: (estado.sinRotacion || []).length },
+      { label: "Clase A", valor: porClase.A, color: "FF2F8F6E" },
+      { label: "Clase B", valor: porClase.B, color: "FF4A6FA5" },
+      { label: "Clase C", valor: porClase.C, color: "FFE8A03D" },
+      { label: "Clase D", valor: porClase.D, color: "FF6B7280" }
+    ],
+    [
+      `Período analizado: ${pedido[0]?.periodoAnalizado || noPedido[0]?.periodoAnalizado || "—"}`,
+      `Horizonte de abastecimiento: ${pedido[0]?.periodoAbastecimiento || "—"}`,
+      "Generado automáticamente por el sistema de Abastecimiento KACOSA."
+    ]
+  );
+  XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
   const columnasBase = [
-    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' }, { key: 'ventasPeriodo', label: 'Ventas Período' },
-    { key: 'stockTienda', label: 'Stock Tienda' }, { key: 'stockKacosa', label: 'Stock Kacosa' },
-    { key: 'aPedir', label: 'A Pedir' }
+    { key: 'codigo', label: 'Código', ancho: 14 },
+    { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
+    { key: 'ventasPeriodo', label: 'Ventas Período', ancho: 14 },
+    { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 },
+    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 },
+    { key: 'aPedir', label: 'A Pedir', ancho: 10 }
   ];
 
-  agregarHoja(pedido, 'A_Pedir', columnasBase);
-  agregarHoja(noPedido, 'No_Amerito_Pedido', columnasBase);
-  agregarHoja(pendienteStock.map(m => ({ ...m, pendiente: m.aPedirIdeal - m.aPedir })), 'Pendiente_Stock_Kacosa', [
-    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' }, { key: 'clase', label: 'Clase' },
-    { key: 'aPedirIdeal', label: 'A Pedir Ideal' }, { key: 'aPedir', label: 'A Pedir Real' },
-    { key: 'pendiente', label: 'Pendiente' }, { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
-  agregarHoja(sugerencias, 'Sugerencias', [
-    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' }, { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
-  agregarHoja((estado.sinRotacion || []), 'Sin_Rotacion', [
-    { key: 'codigo', label: 'Código' }, { key: 'descripcion', label: 'Descripción' },
-    { key: 'stockTienda', label: 'Stock Tienda' }, { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasBase, { colorearPorClase: true }), "A_Pedir");
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasBase, { colorearPorClase: true }), "No_Amerito_Pedido");
+
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
+    pendienteStock.map(m => ({ ...m, pendiente: m.aPedirIdeal - m.aPedir })),
+    [
+      { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
+      { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'aPedirIdeal', label: 'A Pedir Ideal', ancho: 12 },
+      { key: 'aPedir', label: 'A Pedir Real', ancho: 12 }, { key: 'pendiente', label: 'Pendiente', ancho: 12 },
+      { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+    ], { colorearPorClase: true }
+  ), "Pendiente_Stock_Kacosa");
+
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
+    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+  ]), "Sugerencias");
+
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada((estado.sinRotacion || []), [
+    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 }, { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+  ]), "Sin_Rotacion");
 
   return wb;
 }
 
 function descargarExcelUnificado() {
-  const { pedido, noPedido, pendienteStock, sugerencias } = estado.grupos;
   const base = `${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}`;
-
-  const wb = XLSX.utils.book_new();
-
-  // Función helper para crear hoja
-  const agregarHoja = (datos, nombre, columnas) => {
-    if (!datos || datos.length === 0) {
-      const ws = XLSX.utils.json_to_sheet([{ Mensaje: "Sin datos" }]);
-      XLSX.utils.book_append_sheet(wb, ws, nombre);
-      return;
-    }
-    const ws = XLSX.utils.json_to_sheet(datos.map(d => {
-      const obj = {};
-      columnas.forEach(col => {
-        obj[col.label] = d[col.key] !== undefined ? d[col.key] : '';
-      });
-      return obj;
-    }));
-    XLSX.utils.book_append_sheet(wb, ws, nombre);
-  };
-
-  const columnasBase = [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'ventasPeriodo', label: 'Ventas Período' },
-    { key: 'stockTienda', label: 'Stock Tienda' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' },
-    { key: 'aPedir', label: 'A Pedir' }
-  ];
-
-  agregarHoja(pedido, 'A_Pedir', columnasBase);
-  agregarHoja(noPedido, 'No_Amerito_Pedido', columnasBase);
-  
-  agregarHoja(pendienteStock.map(m => ({
-    ...m,
-    pendiente: m.aPedirIdeal - m.aPedir
-  })), 'Pendiente_Stock_Kacosa', [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'aPedirIdeal', label: 'A Pedir Ideal' },
-    { key: 'aPedir', label: 'A Pedir Real' },
-    { key: 'pendiente', label: 'Pendiente' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
-
-  agregarHoja(sugerencias, 'Sugerencias', [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
-
-  agregarHoja((estado.sinRotacion || []), 'Sin_Rotacion', [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'stockTienda', label: 'Stock Tienda' },
-    { key: 'stockKacosa', label: 'Stock Kacosa' }
-  ]);
-
-  XLSX.writeFile(wb, `Analisis_${base}.xlsx`);
+  XLSX.writeFile(construirWorkbookCompleto(), `Analisis_${base}.xlsx`);
+  notificarExito("El archivo Excel con las 6 pestañas (Resumen + 5 reportes) se descargó correctamente.", { titulo: "Excel descargado" });
 }
 
 document.addEventListener("kacosa:vista-cambiada", (e) => {
