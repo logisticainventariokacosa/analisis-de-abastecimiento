@@ -37,23 +37,24 @@ export function calcularAbastecimiento({ ventasProcesadas, stockTienda, stockKac
   const { porMaterial, rangoFechas } = ventasProcesadas;
   const modoClasificacion = periodo === "semana" ? "semanal" : "mensual";
 
-  // Periodo_Analizado: solo en la unidad correspondiente al periodo elegido, con 1 decimal
-  const redondear1 = (n) => Math.round(n * 10) / 10;
-  const periodoAnalizado = modoClasificacion === "semanal"
-    ? `${redondear1(rangoFechas.semanas)} semana(s)`
-    : `${redondear1(rangoFechas.meses)} mes(es)`;
+  // Periodo_Ventas: redondeado a número ENTERO (sin decimales), en la unidad correspondiente
+  const periodoVentas = modoClasificacion === "semanal"
+    ? `${Math.round(rangoFechas.semanas)} semana(s)`
+    : `${Math.round(rangoFechas.meses)} mes(es)`;
 
-  // Periodo_de_abastecimiento: para cuánto alcanza el "a pedir" (lo que eligió el usuario)
+  // Periodo_Abastecimiento: para cuánto alcanza el "a pedir" (lo que eligió el usuario)
   const periodoAbastecimiento = periodo === "semana"
     ? "1 semana"
     : periodo === "mes"
     ? "1 mes"
     : `${mesesCantidad || 1} mes(es)`;
 
+  const rangoSeguridadUsado = `${margenPct || 0} %`;
+
   const resultado = [];
 
   Object.values(porMaterial).forEach(v => {
-    // --- Clasificación ABCD (con unidad de venta, no la base) ---
+    // --- Clasificación ABCD (con unidad de venta, no la base) — usa el valor SIN redondear ---
     const tasaClasificacion = modoClasificacion === "semanal"
       ? v.ventaNetaUnidadVenta / rangoFechas.semanas
       : v.ventaNetaUnidadVenta / rangoFechas.meses;
@@ -102,17 +103,17 @@ export function calcularAbastecimiento({ ventasProcesadas, stockTienda, stockKac
       codigo: v.codigo,
       descripcion: v.descripcion,
       clase,
-      // Ventas_Periodo ahora muestra el promedio ya dividido según la unidad elegida
-      // (mismo valor usado para la clasificación ABCD), no el total crudo del periodo completo.
-      ventasPeriodo: Math.round(tasaClasificacion * 100) / 100,
+      totalVentas: Math.round(v.ventaNetaUnidadVenta * 100) / 100,
+      promedioVentasPeriodo: Math.round(tasaClasificacion * 100) / 100,
       stockTienda: stockTiendaDisp,
       stockKacosa: stockKacosaDisp,
       aPedir: aPedirFinal,
       aPedirIdeal,
       pendiente,
       empaque,
-      periodoAnalizado,
-      periodoAbastecimiento
+      periodoVentas,
+      periodoAbastecimiento,
+      rangoSeguridadUsado
     });
   });
 
