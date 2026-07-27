@@ -14,7 +14,24 @@ import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.j
 
 const CENTROS_KACOSA = ["1000", "3000"];
 
-// Estado persistente
+// ============================================================
+//  COLUMNAS REQUERIDAS PARA CADA TIPO DE ARCHIVO
+// ============================================================
+const COLUMNAS_VENTAS = [
+  "Material", "Texto breve de material", "Centro", "Almacén", "Clase de movimiento",
+  "Documento material", "Fe.contabilización", "Hora de entrada", "Ctd.en UM entrada",
+  "Un.medida de entrada", "Cliente", "Nombre del usuario", "Texto cab.documento"
+];
+
+const COLUMNAS_STOCK = [
+  "Material", "Texto breve de material", "Centro", "Almacén", "Unidad medida base",
+  "Denominación-almacén", "Libre utilización", "Trans./Trasl.", "En control calidad",
+  "Bloqueado", "Devoluciones"
+];
+
+// ============================================================
+//  ESTADO PERSISTENTE
+// ============================================================
 let estado = {
   ventasProcesadas: null,
   stockTienda: null,
@@ -30,18 +47,21 @@ let estado = {
   periodo: null,
   mesesCantidad: null,
   margenPct: null,
-  analisisCompleto: null // Para persistencia entre módulos
+  analisisCompleto: null,
+  analizando: false // ← Evita múltiples análisis simultáneos
 };
 
 function tiendasDelUsuario() {
   return window.KACOSA?.tiendas || [];
 }
 
+// ============================================================
+//  RENDER PRINCIPAL
+// ============================================================
 function render() {
   const cont = document.getElementById("nuevo-analisis-contenido");
   if (!cont) return;
 
-  // Si ya hay un análisis completo, mostrarlo directamente
   if (estado.analisisCompleto) {
     mostrarResultados(estado.analisisCompleto.resultado, estado.analisisCompleto.sugerencias);
     return;
@@ -83,6 +103,7 @@ function render() {
           <span class="file-status empty" id="file-status-ventas">Pendiente</span>
           <input type="file" id="na-ventas" accept=".mht,.MHT">
         </div>
+        <div id="validacion-ventas" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <!-- Stock de la tienda -->
@@ -97,6 +118,7 @@ function render() {
           <span class="file-status empty" id="file-status-stock-tienda">Pendiente</span>
           <input type="file" id="na-stock-tienda" accept=".mht,.MHT">
         </div>
+        <div id="validacion-stock-tienda" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <!-- Stock de Kacosa -->
@@ -111,6 +133,7 @@ function render() {
           <span class="file-status empty" id="file-status-stock-kacosa">Pendiente</span>
           <input type="file" id="na-stock-kacosa" accept=".mht,.MHT">
         </div>
+        <div id="validacion-stock-kacosa" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <!-- Pendientes por sincronizar (opcional) -->
@@ -165,36 +188,58 @@ function render() {
     <div id="na-resultados"></div>
   `;
 
-  // Event listeners para los archivos (drag & drop + cambio de estado)
+  // ============================================================
+  //  EVENTOS DE ARCHIVOS (CARGA + VALIDACIÓN DE COLUMNAS)
+  // ============================================================
   const fileInputs = [
-    { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas' },
-    { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda' },
-    { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa' },
-    { id: 'na-pendientes-sync', nameId: 'file-name-pendientes-sync', statusId: 'file-status-pendientes-sync', wrapperId: 'file-wrapper-pendientes-sync' }
+    { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas', validId: 'validacion-ventas', tipo: 'ventas' },
+    { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda', validId: 'validacion-stock-tienda', tipo: 'stock' },
+    { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa', validId: 'validacion-stock-kacosa', tipo: 'stock' },
+    { id: 'na-pendientes-sync', nameId: 'file-name-pendientes-sync', statusId: 'file-status-pendientes-sync', wrapperId: 'file-wrapper-pendientes-sync', validId: null, tipo: null }
   ];
 
-  fileInputs.forEach(({ id, nameId, statusId, wrapperId }) => {
+  fileInputs.forEach(({ id, nameId, statusId, wrapperId, validId, tipo }) => {
     const input = document.getElementById(id);
     const nameEl = document.getElementById(nameId);
     const statusEl = document.getElementById(statusId);
     const wrapper = document.getElementById(wrapperId);
+    const validEl = validId ? document.getElementById(validId) : null;
 
     if (input) {
-      input.addEventListener('change', () => {
+      input.addEventListener('change', async () => {
         if (input.files && input.files[0]) {
           nameEl.textContent = input.files[0].name;
           statusEl.textContent = '✓ Cargado';
           statusEl.className = 'file-status loaded';
           wrapper.classList.add('loaded');
+
+          if (validEl && tipo) {
+            try {
+              const texto = await input.files[0].text();
+              const filas = parsearMHT(texto);
+              const columnasRequeridas = tipo === 'ventas' ? COLUMNAS_VENTAS : COLUMNAS_STOCK;
+              const resultado = validarColumnasArchivo(filas, columnasRequeridas, tipo);
+              validEl.textContent = resultado.mensaje;
+              validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
+              input.dataset.valido = resultado.valido ? 'true' : 'false';
+            } catch (err) {
+              validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
+              validEl.style.color = 'var(--rojo-alerta)';
+              input.dataset.valido = 'false';
+            }
+          }
         } else {
           nameEl.textContent = 'Seleccionar archivo';
           statusEl.textContent = 'Pendiente';
           statusEl.className = 'file-status empty';
           wrapper.classList.remove('loaded');
+          if (validEl) {
+            validEl.textContent = '';
+            input.dataset.valido = 'false';
+          }
         }
       });
 
-      // Drag and drop
       if (wrapper) {
         wrapper.addEventListener('dragover', (e) => {
           e.preventDefault();
@@ -224,7 +269,60 @@ function render() {
   document.getElementById("btn-analizar").addEventListener("click", ejecutarAnalisis);
 }
 
+// ============================================================
+//  VALIDACIÓN DE COLUMNAS
+// ============================================================
+function validarColumnasArchivo(filas, columnasRequeridas, tipo) {
+  if (filas.length === 0) {
+    return { valido: false, mensaje: '⚠️ El archivo está vacío o no tiene datos', faltantes: columnasRequeridas };
+  }
+
+  const columnasExistentes = Object.keys(filas[0]);
+  const faltantes = columnasRequeridas.filter(col => !columnasExistentes.includes(col));
+
+  if (faltantes.length === 0) {
+    return { valido: true, mensaje: `✅ Archivo válido: contiene todas las columnas requeridas (${columnasRequeridas.length})`, faltantes: [] };
+  }
+
+  const nombreTipo = tipo === 'ventas' ? 'ventas' : 'stock';
+  return {
+    valido: false,
+    mensaje: `⚠️ El archivo de ${nombreTipo} no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`,
+    faltantes: faltantes
+  };
+}
+
+// ============================================================
+//  VERIFICACIÓN DE ARCHIVOS VÁLIDOS
+// ============================================================
+function verificarArchivosValidos() {
+  const archivos = [
+    { id: 'na-ventas', nombre: 'ventas' },
+    { id: 'na-stock-tienda', nombre: 'stock de tienda' },
+    { id: 'na-stock-kacosa', nombre: 'stock de Kacosa' }
+  ];
+
+  for (const arch of archivos) {
+    const input = document.getElementById(arch.id);
+    if (!input || !input.files || input.files.length === 0) {
+      return { ok: false, error: `Falta el archivo de ${arch.nombre}` };
+    }
+    if (input.dataset.valido !== 'true') {
+      return { ok: false, error: `El archivo de ${arch.nombre} no es válido. Verifica que tenga las columnas correctas.` };
+    }
+  }
+  return { ok: true };
+}
+
+// ============================================================
+//  EJECUTAR ANÁLISIS (CON BLOQUEO DEL BOTÓN)
+// ============================================================
 async function ejecutarAnalisis() {
+  if (estado.analizando) {
+    document.getElementById("na-estado").textContent = "⏳ Ya hay un análisis en progreso. Espera a que termine.";
+    return;
+  }
+
   const estadoTexto = document.getElementById("na-estado");
   document.getElementById("na-duplicados").innerHTML = "";
   document.getElementById("na-resultados").innerHTML = "";
@@ -237,8 +335,15 @@ async function ejecutarAnalisis() {
   const mesesCantidad = Number(document.getElementById("na-meses-cantidad").value) || 1;
   const margenPct = Number(document.getElementById("na-margen").value);
 
-  if (!tienda || !archivoVentas || !archivoStockTienda || !archivoStockKacosa) {
-    estadoTexto.textContent = "Selecciona la tienda y sube los 3 archivos.";
+  // Validar archivos antes de empezar
+  const validacion = verificarArchivosValidos();
+  if (!validacion.ok) {
+    estadoTexto.textContent = validacion.error;
+    return;
+  }
+
+  if (!tienda) {
+    estadoTexto.textContent = "Selecciona una tienda.";
     return;
   }
 
@@ -249,6 +354,11 @@ async function ejecutarAnalisis() {
   }
 
   try {
+    estado.analizando = true;
+    const btnAnalizar = document.getElementById("btn-analizar");
+    btnAnalizar.disabled = true;
+    btnAnalizar.textContent = "⏳ Analizando...";
+
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
 
@@ -262,6 +372,9 @@ async function ejecutarAnalisis() {
     const errorValidacion = validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centrosValidos);
     if (errorValidacion) {
       estadoTexto.textContent = "⚠️ " + errorValidacion;
+      btnAnalizar.disabled = false;
+      btnAnalizar.textContent = "🚀 Analizar";
+      estado.analizando = false;
       return;
     }
 
@@ -296,8 +409,8 @@ async function ejecutarAnalisis() {
       if (respGemini.ok) gruposGemini = respGemini.grupos;
     }
 
-    // Guarda estado para cuando el usuario confirme/rechace duplicados
     estado = {
+      ...estado,
       ventasProcesadas, stockTienda, stockKacosa,
       clustersCandidatos: clusters, gruposGemini,
       tiendaSeleccionada: tienda, periodo, mesesCantidad, margenPct,
@@ -310,15 +423,22 @@ async function ejecutarAnalisis() {
       mostrarDuplicados(gruposGemini);
     } else {
       estadoTexto.textContent = "No se detectaron duplicados. Calculando...";
-      finalizarCalculo([]);
+      await finalizarCalculo([]);
     }
 
   } catch (err) {
     estadoTexto.textContent = "Error: " + err.message;
     console.error(err);
+    const btnAnalizar = document.getElementById("btn-analizar");
+    btnAnalizar.disabled = false;
+    btnAnalizar.textContent = "🚀 Analizar";
+    estado.analizando = false;
   }
 }
 
+// ============================================================
+//  MOSTRAR DUPLICADOS
+// ============================================================
 function mostrarDuplicados(grupos) {
   const cont = document.getElementById("na-duplicados");
   const descripcionPorCodigo = {};
@@ -353,6 +473,9 @@ function mostrarDuplicados(grupos) {
   });
 }
 
+// ============================================================
+//  FINALIZAR CÁLCULO
+// ============================================================
 async function finalizarCalculo(gruposConfirmados) {
   document.getElementById("na-duplicados").innerHTML = "";
   const estadoTexto = document.getElementById("na-estado");
@@ -385,7 +508,6 @@ async function finalizarCalculo(gruposConfirmados) {
   );
   resultado = resultadoConAnexos;
 
-  // Agrega Tienda y Fecha_Analisis a cada fila (ahora forman parte del esquema de columnas)
   resultado.forEach(m => {
     m.tienda = nombrePorId(estado.tiendaSeleccionada);
     m.fechaAnalisis = estado.fechaAnalisis;
@@ -401,7 +523,6 @@ async function finalizarCalculo(gruposConfirmados) {
   const mesesUsadosRedondeado = Math.round(estado.ventasProcesadas.rangoFechas?.meses || 0);
   const semanasUsadasRedondeado = Math.round(estado.ventasProcesadas.rangoFechas?.semanas || 0);
 
-  // Guardar análisis completo para persistencia
   estado.analisisCompleto = {
     resultado: resultado,
     sugerencias: sugerencias,
@@ -414,7 +535,6 @@ async function finalizarCalculo(gruposConfirmados) {
     semanasUsadas: semanasUsadasRedondeado
   };
 
-  // Guardar en window para otros módulos
   window.KACOSA.ultimoAnalisis = {
     tienda: estado.tiendaSeleccionada,
     fechaAnalisis: estado.fechaAnalisis,
@@ -427,11 +547,10 @@ async function finalizarCalculo(gruposConfirmados) {
   };
 
   estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsadosRedondeado} meses (${semanasUsadasRedondeado} semanas).`;
-  
+
   mostrarResultados(resultado, sugerencias);
 
-  // Auto-guardado: se guarda de inmediato en Google Sheets, reemplazando el
-  // análisis anterior de esta tienda, sin esperar a que el usuario presione nada.
+  // Auto-guardado
   const estadoAcciones = document.getElementById("na-estado-acciones");
   if (estadoAcciones) estadoAcciones.textContent = "Guardando automáticamente en Google Sheets...";
   const respGuardado = await callBridge("guardarAnalisis", {
@@ -445,7 +564,7 @@ async function finalizarCalculo(gruposConfirmados) {
       : "⚠️ No se pudo guardar automáticamente: " + respGuardado.error;
   }
 
-  const totalAPedirNotif = estado.grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
+  const totalAPedirNotif = estado.grupos?.pedido?.reduce((acc, m) => acc + (m.aPedir || 0), 0) || 0;
   if (respGuardado.ok) {
     notificarExito(
       `Se procesaron ${resultado.length} material(es) — ${totalAPedirNotif} unidades a pedir. El análisis quedó guardado automáticamente en Google Sheets.`,
@@ -459,19 +578,30 @@ async function finalizarCalculo(gruposConfirmados) {
   }
 
   document.dispatchEvent(new CustomEvent("kacosa:analisis-listo", { detail: window.KACOSA.ultimoAnalisis }));
+
+  const btnAnalizar = document.getElementById("btn-analizar");
+  btnAnalizar.disabled = false;
+  btnAnalizar.textContent = "🚀 Analizar";
+  estado.analizando = false;
 }
 
+// ============================================================
+//  MOSTRAR RESULTADOS
+// ============================================================
 function mostrarResultados(resultado, sugerencias) {
   const cont = document.getElementById("na-resultados");
   const grupos = clasificarEnCuatroGrupos(resultado, sugerencias);
   estado.grupos = grupos;
 
-  const totalAPedir = grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
+  const totalAPedir = grupos.pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
-  resultado.forEach(m => porClase[m.clase]++);
+  resultado.forEach(m => {
+    const clase = (m.clase || '').toUpperCase();
+    if (porClase[clase] !== undefined) porClase[clase]++;
+  });
 
   const infoPeriodo = window.KACOSA.ultimoAnalisis;
-  const textoPeriodo = infoPeriodo 
+  const textoPeriodo = infoPeriodo
     ? `Período usado: ${infoPeriodo.mesesUsados ?? '?'} meses (${infoPeriodo.semanasUsadas ?? '?'} semanas)`
     : '';
 
@@ -501,7 +631,7 @@ function mostrarResultados(resultado, sugerencias) {
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
         <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Materiales a pedir</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap">
-          <input type="text" id="na-buscar" placeholder="🔍 Buscar por código o descripción..." 
+          <input type="text" id="na-buscar" placeholder="🔍 Buscar por código o descripción..."
                  style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
         </div>
       </div>
@@ -524,7 +654,6 @@ function mostrarResultados(resultado, sugerencias) {
     </div>
   `;
 
-  // Renderizar tabla con paginación
   const columnas = [
     { key: 'codigo', label: 'Código' },
     { key: 'descripcion', label: 'Descripción' },
@@ -538,19 +667,16 @@ function mostrarResultados(resultado, sugerencias) {
 
   const container = document.getElementById('na-tabla-container');
   const { renderizar } = crearTablaPaginada(container, columnas, 50);
-  
-  // Usar grupos.pedido para la tabla
   renderizar(grupos.pedido);
 
-  // Evento de búsqueda
   document.getElementById('na-buscar').addEventListener('input', (e) => {
     const termino = e.target.value.toLowerCase().trim();
     if (!termino) {
       renderizar(grupos.pedido);
       return;
     }
-    const filtrados = grupos.pedido.filter(m => 
-      String(m.codigo).toLowerCase().includes(termino) || 
+    const filtrados = grupos.pedido.filter(m =>
+      String(m.codigo).toLowerCase().includes(termino) ||
       String(m.descripcion).toLowerCase().includes(termino)
     );
     renderizar(filtrados);
@@ -561,12 +687,9 @@ function mostrarResultados(resultado, sugerencias) {
   document.getElementById("btn-enviar-correo").addEventListener("click", enviarCorreo);
 }
 
-/**
- * Valida que cada archivo tenga el/los centro(s) correctos:
- * - Ventas: un único centro, igual al de la tienda seleccionada.
- * - Stock tienda: un único centro, igual al de la tienda seleccionada.
- * - Stock Kacosa: solo centros 1000 y/o 3000, ningún otro.
- */
+// ============================================================
+//  FUNCIONES AUXILIARES (SIN CAMBIOS)
+// ============================================================
 function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centrosValidos) {
   const extraerCentros = (filas) =>
     new Set(filas.map(f => String(f["Centro"] || "").trim()).filter(Boolean));
@@ -598,16 +721,9 @@ function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centros
     return `El archivo de stock de Kacosa contiene centro(s) que no pertenecen a Kacosa (${centrosInvalidos.join(", ")}). Kacosa solo puede ser 1000 y/o 3000.`;
   }
 
-  return null; // todo válido
+  return null;
 }
 
-/**
- * Anexa al resultado los materiales de la base de Alta Rotación que:
- * - NO quedaron en el resultado del cálculo normal
- * - SÍ tienen stock disponible en Kacosa
- * - NO tienen stock en la tienda
- * Se agregan por la cantidad mínima de empaque.
- */
 function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRotacion, periodoVentas, periodoAbastecimiento, rangoSeguridadUsado) {
   const codigosEnResultado = new Set(resultado.map(m => m.codigo));
   const anexados = [];
@@ -622,7 +738,7 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
 
     const infoTienda = stockTienda[codigo];
     const stockTiendaDisp = infoTienda ? infoTienda.stockDisponible : 0;
-    if (stockTiendaDisp > 0) return; // sí hay en tienda, no hace falta anexarlo forzado
+    if (stockTiendaDisp > 0) return;
 
     const empaque = Number(m.empaque) || 1;
     const aPedir = Math.min(empaque, stockKacosaDisp);
@@ -649,11 +765,6 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
   return { resultadoConAnexos: resultado, anexados };
 }
 
-/**
- * Genera el reporte de sugerencias: materiales con stock disponible en Kacosa
- * que NO están en el resultado del a pedir, NO están en Alta Rotación, y
- * NO tienen stock en la tienda.
- */
 function generarSugerencias(resultado, stockTienda, stockKacosa, altaRotacion) {
   const codigosEnResultado = new Set(resultado.map(m => m.codigo));
   const codigosAltaRotacion = new Set(altaRotacion.map(m => String(m.codigo)));
@@ -674,11 +785,6 @@ function generarSugerencias(resultado, stockTienda, stockKacosa, altaRotacion) {
   }));
 }
 
-/**
- * Materiales con stock disponible en la TIENDA que NO tuvieron NINGÚN
- * movimiento de venta/devolución en todo el periodo analizado — para
- * control de mercancía sin rotación (dinero parado en el estante).
- */
 function generarSinRotacion(stockKacosa, stockTienda, ventasProcesadas) {
   const codigosConMovimiento = new Set(Object.keys(ventasProcesadas.porMaterial));
 
@@ -699,14 +805,15 @@ function generarSinRotacion(stockKacosa, stockTienda, ventasProcesadas) {
 }
 
 function clasificarEnCuatroGrupos(resultado, sugerencias) {
-  const pedido = resultado.filter(m => m.aPedir > 0);
-  const noPedido = resultado.filter(m => m.aPedirIdeal === 0);
-  const pendienteStock = resultado.filter(m => m.pendiente > 0);
+  const pedido = resultado.filter(m => (m.aPedir || 0) > 0);
+  const noPedido = resultado.filter(m => (m.aPedirIdeal || 0) === 0);
+  const pendienteStock = resultado.filter(m => (m.pendiente || 0) > 0);
   return { pedido, noPedido, pendienteStock, sugerencias };
 }
 
-/* ============ Guardar en Google Sheets ============ */
-
+// ============================================================
+//  GUARDAR, ENVIAR Y DESCARGAR
+// ============================================================
 async function guardarAnalisisEnSheets() {
   const estadoAcciones = document.getElementById("na-estado-acciones");
   estadoAcciones.textContent = "Guardando en Google Sheets...";
@@ -728,8 +835,6 @@ async function guardarAnalisisEnSheets() {
   }
 }
 
-/* ============ Enviar por correo (1 adjunto con 5 pestañas) ============ */
-
 async function enviarCorreo() {
   const estadoAcciones = document.getElementById("na-estado-acciones");
   estadoAcciones.textContent = "Preparando el archivo...";
@@ -740,7 +845,7 @@ async function enviarCorreo() {
     base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
   }];
 
-  const totalAPedir = estado.grupos.pedido.reduce((acc, m) => acc + m.aPedir, 0);
+  const totalAPedir = estado.grupos.pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
 
   estadoAcciones.textContent = "Enviando correo...";
   const resp = await callBridge("sendReport", {
@@ -763,16 +868,17 @@ async function enviarCorreo() {
   }
 }
 
-/** Construye el workbook completo (Resumen + 5 pestañas) con formato profesional. Se usa tanto para descargar como para adjuntar al correo. */
 function construirWorkbookCompleto() {
   const { pedido, noPedido, pendienteStock, sugerencias } = estado.grupos;
   const wb = XLSX.utils.book_new();
 
-  const totalAPedir = pedido.reduce((acc, m) => acc + m.aPedir, 0);
+  const totalAPedir = pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
-  [...pedido, ...noPedido, ...pendienteStock].forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
+  [...pedido, ...noPedido, ...pendienteStock].forEach(m => {
+    const clase = (m.clase || '').toUpperCase();
+    if (porClase[clase] !== undefined) porClase[clase]++;
+  });
 
-  // --- Hoja Resumen (mini-dashboard con las cifras clave) ---
   const wsResumen = construirHojaResumen(
     `Análisis de Abastecimiento — ${nombrePorId(estado.tiendaSeleccionada)}`,
     [
@@ -797,7 +903,6 @@ function construirWorkbookCompleto() {
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-  // Esquema completo de columnas para A_Pedir y No_Amerito_Pedido
   const columnasCompletas = [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
@@ -824,7 +929,7 @@ function construirWorkbookCompleto() {
   }), "No_Amerito_Pedido");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
-    pendienteStock.map(m => ({ ...m, pendiente: m.aPedirIdeal - m.aPedir })),
+    pendienteStock.map(m => ({ ...m, pendiente: (m.aPedirIdeal || 0) - (m.aPedir || 0) })),
     [
       { key: 'codigo', label: 'Codigo', ancho: 14 }, { key: 'descripcion', label: 'Descripcion', ancho: 38 },
       { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'aPedirIdeal', label: 'A_Pedir_Ideal', ancho: 12 },
