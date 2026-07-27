@@ -121,8 +121,11 @@ function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
   materialesCache = analisis.materiales;
   
-  const totalAPedir = materialesCache.reduce((acc, m) => acc + (m.aPedir || 0), 0);
+  // Calcular estadísticas
+  const totalMaterialesAPedir = materialesCache.filter(m => (m.aPedir || 0) > 0).length;
+  const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + (m.aPedir || 0), 0);
   const quiebres = materialesCache.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0).length;
+  
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
     const clase = (m.clase || '').toUpperCase();
@@ -133,8 +136,12 @@ function mostrarDashboard(analisis) {
     <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${analisis.fechaAnalisis || "—"}</strong></p>
     <div class="kpi-grid">
       <div class="kpi-card verde">
-        <div class="label">Total a pedir</div>
-        <div class="valor">${totalAPedir}</div>
+        <div class="label">Materiales a pedir</div>
+        <div class="valor">${totalMaterialesAPedir}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">Unidades a pedir</div>
+        <div class="valor">${totalUnidadesAPedir}</div>
       </div>
       <div class="kpi-card rojo">
         <div class="label">Sin stock en Kacosa</div>
@@ -147,7 +154,7 @@ function mostrarDashboard(analisis) {
     </div>
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
-        <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Materiales a pedir</h3>
+        <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Materiales a pedir (${totalMaterialesAPedir})</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap">
           <input type="text" id="dash-buscar" placeholder="🔍 Buscar por código o descripción..." 
                  style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
@@ -201,14 +208,14 @@ function descargarExcelDashboard(materiales, analisis) {
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
-  // Clasificar en los 4 grupos igual que el análisis
   const pedido = materiales.filter(m => (m.aPedir || 0) > 0);
   const noPedido = materiales.filter(m => (m.aPedir || 0) === 0);
   const pendienteStock = materiales.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0);
   const sugerencias = materiales.filter(m => (m.stockKacosa || 0) > 0 && (m.aPedir || 0) === 0);
   const sinRotacion = materiales.filter(m => (m.stockTienda || 0) > 0 && (m.aPedir || 0) === 0);
 
-  const totalAPedir = pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
+  const totalMaterialesAPedir = pedido.length;
+  const totalUnidadesAPedir = pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materiales.forEach(m => { 
     const clase = (m.clase || '').toUpperCase();
@@ -217,14 +224,13 @@ function descargarExcelDashboard(materiales, analisis) {
 
   const wb = XLSX.utils.book_new();
 
-  // --- Hoja Resumen ---
   const wsResumen = construirHojaResumen(
     `Dashboard — ${nombrePorId(analisis.tienda)}`,
     [
       { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
-      { label: "Materiales a pedir", valor: pedido.length, color: "FF2F8F6E" },
-      { label: "Total unidades a pedir", valor: totalAPedir, color: "FF1B2A41" },
-      { label: "Sin stock en Kacosa (quiebres)", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "Materiales a pedir", valor: totalMaterialesAPedir, color: "FF2F8F6E" },
+      { label: "Unidades a pedir", valor: totalUnidadesAPedir, color: "FF1B2A41" },
+      { label: "Sin stock en Kacosa", valor: pendienteStock.length, color: "FFC4432B" },
       { label: "No ameritaron pedido", valor: noPedido.length },
       { label: "Sugerencias adicionales", valor: sugerencias.length },
       { label: "Sin rotación en tienda", valor: sinRotacion.length },
@@ -242,7 +248,6 @@ function descargarExcelDashboard(materiales, analisis) {
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-  // --- Columnas completas (incluyendo Fecha_Analisis) ---
   const columnasCompletas = [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
@@ -259,18 +264,15 @@ function descargarExcelDashboard(materiales, analisis) {
     { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
   ];
 
-  // --- 1. A_Pedir ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasCompletas, {
     colorearPorClase: true,
     columnasDestacadas: [{ key: 'aPedir', color: 'FFC4432B' }]
   }), "A_Pedir");
 
-  // --- 2. No_Amerito_Pedido ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasCompletas, {
     colorearPorClase: true
   }), "No_Amerito_Pedido");
 
-  // --- 3. Pendiente_Stock_Kacosa ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
     pendienteStock.map(m => ({ ...m, pendiente: (m.aPedirIdeal || 0) - (m.aPedir || 0) })),
     [
@@ -292,7 +294,6 @@ function descargarExcelDashboard(materiales, analisis) {
     }
   ), "Pendiente_Stock_Kacosa");
 
-  // --- 4. Sugerencias ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
@@ -300,7 +301,6 @@ function descargarExcelDashboard(materiales, analisis) {
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
   ], { colorearPorClase: true }), "Sugerencias");
 
-  // --- 5. Sin_Rotacion ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sinRotacion, [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
