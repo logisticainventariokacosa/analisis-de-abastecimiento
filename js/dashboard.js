@@ -93,7 +93,6 @@ async function cargarAnalisis() {
     const aPedir = Number(m.aPedir) || 0;
     const stockKacosa = Number(m.stockKacosa) || 0;
     const stockTienda = Number(m.stockTienda) || 0;
-    const aPedirIdeal = Number(m.aPedirIdeal) || 0;
     return {
       ...m,
       codigo: String(m.codigo || ''),
@@ -104,8 +103,6 @@ async function cargarAnalisis() {
       stockTienda: stockTienda,
       stockKacosa: stockKacosa,
       aPedir: aPedir,
-      aPedirIdeal: aPedirIdeal,
-      pendiente: Math.max(0, aPedirIdeal - aPedir),
       empaque: Number(m.empaque) || 1,
       periodoVentas: String(m.periodoVentas || ''),
       periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
@@ -127,10 +124,8 @@ function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
   materialesCache = analisis.materiales;
   
-  // Calcular estadísticas
   const totalMaterialesAPedir = materialesCache.filter(m => m.aPedir > 0).length;
   const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + m.aPedir, 0);
-  const pendienteStock = materialesCache.filter(m => m.aPedir > 0 && m.stockKacosa < m.aPedir).length;
   
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
@@ -148,10 +143,6 @@ function mostrarDashboard(analisis) {
       <div class="kpi-card">
         <div class="label">Unidades a pedir</div>
         <div class="valor">${totalUnidadesAPedir}</div>
-      </div>
-      <div class="kpi-card rojo">
-        <div class="label">Sin stock suficiente</div>
-        <div class="valor">${pendienteStock}</div>
       </div>
       <div class="kpi-card">
         <div class="label">Clase A / B / C / D</div>
@@ -202,7 +193,7 @@ function mostrarDashboard(analisis) {
   });
 
   document.getElementById('dash-descargar').addEventListener('click', () => {
-    descargarExcelDashboard(materialsCache, analisis);
+    descargarExcelDashboard(materialesCache, analisis);
   });
 }
 
@@ -216,33 +207,19 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   const materiales = materialesOriginal.map(m => {
     const aPedir = Number(m.aPedir) || 0;
     const stockKacosa = Number(m.stockKacosa) || 0;
-    const aPedirIdeal = Number(m.aPedirIdeal) || 0;
     return {
       ...m,
       aPedir: aPedir,
       stockKacosa: stockKacosa,
-      aPedirIdeal: aPedirIdeal,
-      pendiente: Math.max(0, aPedirIdeal - aPedir),
       fechaAnalisis: analisis.fechaAnalisis || ''
     };
   });
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
-  // 1. A_Pedir: materiales con aPedir > 0
+  // Clasificar
   const pedido = materiales.filter(m => m.aPedir > 0);
-  
-  // 2. No_Amerito_Pedido: materiales con aPedir === 0
   const noPedido = materiales.filter(m => m.aPedir === 0);
-  
-  // 3. Pendiente_Stock_Kacosa: aPedir > 0 Y stockKacosa < aPedir
-  const pendienteStock = materiales.filter(m => m.aPedir > 0 && m.stockKacosa < m.aPedir);
-  
-  // 4. Sugerencias: stockKacosa > 0 Y aPedir === 0
-  const sugerencias = materiales.filter(m => m.stockKacosa > 0 && m.aPedir === 0);
-  
-  // 5. Sin_Rotacion: stockTienda > 0 Y aPedir === 0
-  const sinRotacion = materiales.filter(m => (Number(m.stockTienda) || 0) > 0 && m.aPedir === 0);
 
   const totalMaterialesAPedir = pedido.length;
   const totalUnidadesAPedir = pedido.reduce((acc, m) => acc + m.aPedir, 0);
@@ -254,16 +231,13 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
 
   const wb = XLSX.utils.book_new();
 
+  // --- Hoja Resumen ---
   const wsResumen = construirHojaResumen(
     `Dashboard — ${nombrePorId(analisis.tienda)}`,
     [
       { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
       { label: "Materiales a pedir", valor: totalMaterialesAPedir, color: "FF2F8F6E" },
       { label: "Unidades a pedir", valor: totalUnidadesAPedir, color: "FF1B2A41" },
-      { label: "Sin stock suficiente en Kacosa", valor: pendienteStock.length, color: "FFC4432B" },
-      { label: "No ameritaron pedido", valor: noPedido.length },
-      { label: "Sugerencias adicionales", valor: sugerencias.length },
-      { label: "Sin rotación en tienda", valor: sinRotacion.length },
       { label: "Clase A", valor: porClase.A, color: "FF2F8F6E" },
       { label: "Clase B", valor: porClase.B, color: "FF4A6FA5" },
       { label: "Clase C", valor: porClase.C, color: "FFE8A03D" },
@@ -278,6 +252,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
+  // --- Columnas completas ---
   const columnasCompletas = [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
@@ -294,56 +269,16 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
   ];
 
+  // --- A_Pedir ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasCompletas, {
     colorearPorClase: true,
     columnasDestacadas: [{ key: 'aPedir', color: 'FFC4432B' }]
   }), "A_Pedir");
 
+  // --- No_Amerito_Pedido ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasCompletas, {
     colorearPorClase: true
   }), "No_Amerito_Pedido");
-
-  // Pendiente_Stock_Kacosa: aPedir > 0 Y stockKacosa < aPedir
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
-    pendienteStock.map(m => ({ 
-      ...m, 
-      pendiente: Math.max(0, m.aPedir - m.stockKacosa)
-    })),
-    [
-      { key: 'codigo', label: 'Codigo', ancho: 14 },
-      { key: 'descripcion', label: 'Descripcion', ancho: 38 },
-      { key: 'clase', label: 'Clase', ancho: 8 },
-      { key: 'totalVentas', label: 'Total_Ventas', ancho: 12 },
-      { key: 'promedioVentasPeriodo', label: 'Promedio_Ventas_Periodo', ancho: 16 },
-      { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
-      { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
-      { key: 'aPedir', label: 'A_Pedir', ancho: 12 },
-      { key: 'pendiente', label: 'Faltante_en_Kacosa', ancho: 14 },
-      { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
-      { key: 'tienda', label: 'Tienda', ancho: 14 },
-      { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
-      { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
-    ],
-    {
-      colorearPorClase: true,
-      columnasDestacadas: [{ key: 'pendiente', color: 'FFC4432B' }]
-    }
-  ), "Pendiente_Stock_Kacosa");
-
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
-    { key: 'codigo', label: 'Codigo', ancho: 14 },
-    { key: 'descripcion', label: 'Descripcion', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 },
-    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
-  ]), "Sugerencias");
-
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sinRotacion, [
-    { key: 'codigo', label: 'Codigo', ancho: 14 },
-    { key: 'descripcion', label: 'Descripcion', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 },
-    { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
-    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
-  ]), "Sin_Rotacion");
 
   XLSX.writeFile(wb, `Dashboard_${base}.xlsx`);
   notificarExito("El archivo Excel del Dashboard se descargó correctamente.", { titulo: "Excel descargado" });
