@@ -6,6 +6,9 @@ html, body {
   width: 100%;
   max-width: 100%;
   overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 .oculto { display: none !important; }
@@ -32,9 +35,11 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  margin: 0;
+  padding: 0;
 }
 
-/* --- Header único: igual en PC y móvil, siempre visible, se desplaza con el scroll (sticky) --- */
+/* --- Header único: ocupa TODO el ancho, sticky, sin margen --- */
 .app-header {
   display: flex;
   align-items: center;
@@ -46,6 +51,11 @@ body {
   z-index: 50;
   flex-shrink: 0;
   box-shadow: 0 2px 12px rgba(15, 26, 46, 0.15);
+  width: 100%;           /* ocupa todo el ancho */
+  margin: 0;             /* sin margen */
+  border-radius: 0;      /* sin bordes redondeados */
+  left: 0;
+  right: 0;
 }
 
 #btn-hamburguesa {
@@ -84,7 +94,7 @@ body {
 }
 .user-avatar:hover { background: rgba(255,255,255,0.22); }
 
-/* --- Sidebar: menú desplegable (drawer), oculto por defecto, IGUAL en PC y móvil --- */
+/* --- Sidebar: menú desplegable (drawer) --- */
 .sidebar {
   position: fixed;
   top: 0;
@@ -225,7 +235,7 @@ body {
 }
 .btn-salir:hover { background: #A8331F; }
 
-/* --- Contenido principal (flex para que el footer quede al final natural) --- */
+/* --- Contenido principal: flex para que el footer quede al final --- */
 .contenido {
   flex: 1;
   display: flex;
@@ -233,6 +243,9 @@ body {
   min-width: 0;
   max-width: 100%;
   overflow-x: hidden;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 /* --- Vistas --- */
@@ -796,14 +809,6 @@ tbody tr:hover {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-  
-  .header-movil {
-    padding: 12px 16px;
-  }
-  
-  .header-movil h2 {
-    font-size: 14px;
-  }
 }
 
 /* --- Scrollbar --- */
@@ -982,7 +987,7 @@ tbody tr:hover {
   transform: scale(1.05);
 }
 
-/* --- Pie de página: una sola línea, lineal y compacto --- */
+/* --- Pie de página: ocupa todo el ancho, sin margen --- */
 .app-footer {
   flex-shrink: 0;
   background: linear-gradient(135deg, #0F1A2E, #1E2F47);
@@ -996,6 +1001,10 @@ tbody tr:hover {
   gap: 8px;
   flex-wrap: wrap;
   row-gap: 2px;
+  width: 100%;          /* ocupa todo el ancho */
+  margin: 0;            /* sin margen */
+  border-radius: 0;     /* sin bordes redondeados */
+  box-sizing: border-box;
 }
 
 .app-footer-marca {
@@ -1018,7 +1027,6 @@ tbody tr:hover {
 @media (max-width: 600px) {
   .app-footer { padding: 8px 12px; font-size: 11px; }
   .app-footer-punto:nth-of-type(3) { display: none; }
-
 }
 
 /* --- Notificación de éxito --- */
