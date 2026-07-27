@@ -261,6 +261,7 @@ function mostrarAlertas(alertas) {
     { key: 'totalAPedir', label: 'A pedir (todas)', numeric: true },
     { key: 'proyeccionCompra', label: 'Proyección compra', numeric: true },
     { key: 'empaque', label: 'Empaque', numeric: true },
+    { key: 'periodoDeAbastecimiento', label: 'Periodo de abastecimiento' },
     { key: 'tipo', label: 'Alerta' }
   ];
 
@@ -367,6 +368,7 @@ function descargarAlertasExcel(alertas) {
     totalAPedir: a.totalAPedir,
     proyeccionCompra: a.proyeccionCompra,
     empaque: a.empaque,
+    periodoDeAbastecimiento: a.periodoDeAbastecimiento,
     tipo: a.tipo,
     alertaTexto: a.tipo === "SIN_STOCK" ? "Sin stock" : "Stock bajo",
     distribucion: Object.entries(a.distribucionPorTienda || {})
@@ -388,7 +390,11 @@ function descargarAlertasExcel(alertas) {
       { label: "Stock insuficiente", valor: stockBajo, color: "FFE8A03D" },
       { label: "Proyección de compra total", valor: totalProyeccion, color: "FF2F8F6E" }
     ],
-    [`Generado el ${new Date().toLocaleDateString("es-VE")}.`, "Sistema de Abastecimiento KACOSA."]
+    [
+      `Periodo de abastecimiento proyectado: ${filas[0]?.periodoDeAbastecimiento || "—"}`,
+      `Generado el ${new Date().toLocaleDateString("es-VE")}.`,
+      "Sistema de Abastecimiento KACOSA."
+    ]
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
@@ -400,9 +406,13 @@ function descargarAlertasExcel(alertas) {
     { key: 'totalAPedir', label: 'A Pedir (todas)', ancho: 14 },
     { key: 'proyeccionCompra', label: 'Proyección Compra', ancho: 16 },
     { key: 'empaque', label: 'Empaque', ancho: 10 },
+    { key: 'periodoDeAbastecimiento', label: 'Periodo_De_Abastecimiento', ancho: 20 },
     { key: 'alertaTexto', label: 'Alerta', ancho: 12 },
     { key: 'distribucion', label: 'Distribución por Tienda', ancho: 50 }
-  ], { colorearPorAlerta: true });
+  ], {
+    colorearPorAlerta: true,
+    columnasDestacadas: [{ key: 'proyeccionCompra', color: 'FFC4432B' }]
+  });
   XLSX.utils.book_append_sheet(wb, wsAlertas, "Alertas_Kacosa");
 
   const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
