@@ -23,8 +23,12 @@ let mapaEmpaques = {};
 let archivoValido = false;
 
 function render() {
+  console.log("Alertas Kacosa: render() ejecutado");
   const cont = document.getElementById("alertas-kacosa-contenido");
-  if (!cont) return;
+  if (!cont) {
+    console.warn("Alertas Kacosa: contenedor no encontrado");
+    return;
+  }
 
   // Limpiar el contenido para reconstruirlo siempre
   cont.innerHTML = `
@@ -67,18 +71,18 @@ function render() {
 
   // Event listeners para botones de período
   document.querySelectorAll('.btn-periodo').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', function() {
       document.querySelectorAll('.btn-periodo').forEach(b => {
         b.classList.remove('activo');
         b.style.background = 'var(--blanco)';
         b.style.color = 'var(--texto-principal)';
         b.style.borderColor = 'var(--borde)';
       });
-      btn.classList.add('activo');
-      btn.style.background = 'var(--azul-base)';
-      btn.style.color = '#fff';
-      btn.style.borderColor = 'var(--azul-base)';
-      periodoSeleccionado = parseInt(btn.dataset.meses);
+      this.classList.add('activo');
+      this.style.background = 'var(--azul-base)';
+      this.style.color = '#fff';
+      this.style.borderColor = 'var(--azul-base)';
+      periodoSeleccionado = parseInt(this.dataset.meses);
     });
   });
 
@@ -92,72 +96,88 @@ function render() {
 
   // Resetear estado del archivo
   archivoValido = false;
-  btnAnalizar.disabled = true;
+  if (btnAnalizar) btnAnalizar.disabled = true;
 
   if (input) {
-    input.addEventListener('change', async () => {
+    // Remover listeners anteriores para evitar duplicados
+    const newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
+    
+    newInput.addEventListener('change', async function() {
       archivoValido = false;
-      btnAnalizar.disabled = true;
+      if (btnAnalizar) btnAnalizar.disabled = true;
 
-      if (input.files && input.files[0]) {
-        nameEl.textContent = input.files[0].name;
-        statusEl.textContent = '✓ Cargado';
-        statusEl.className = 'file-status loaded';
-        wrapper.classList.add('loaded');
+      if (this.files && this.files[0]) {
+        if (nameEl) nameEl.textContent = this.files[0].name;
+        if (statusEl) {
+          statusEl.textContent = '✓ Cargado';
+          statusEl.className = 'file-status loaded';
+        }
+        if (wrapper) wrapper.classList.add('loaded');
 
-        // Validar columnas y centros
         try {
-          const texto = await input.files[0].text();
+          const texto = await this.files[0].text();
           const filas = parsearMHT(texto);
           const resultado = validarArchivoStock(filas);
           
-          validEl.textContent = resultado.mensaje;
-          validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
+          if (validEl) {
+            validEl.textContent = resultado.mensaje;
+            validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
+          }
           
           if (resultado.valido) {
             archivoValido = true;
-            btnAnalizar.disabled = false;
-            // Guardar las filas para procesarlas después
-            input.dataset.filas = JSON.stringify(filas);
+            if (btnAnalizar) btnAnalizar.disabled = false;
+            this.dataset.filas = JSON.stringify(filas);
           } else {
             archivoValido = false;
-            btnAnalizar.disabled = true;
-            input.dataset.filas = '';
+            if (btnAnalizar) btnAnalizar.disabled = true;
+            this.dataset.filas = '';
           }
         } catch (err) {
-          validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
-          validEl.style.color = 'var(--rojo-alerta)';
+          if (validEl) {
+            validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
+            validEl.style.color = 'var(--rojo-alerta)';
+          }
           archivoValido = false;
-          btnAnalizar.disabled = true;
-          input.dataset.filas = '';
+          if (btnAnalizar) btnAnalizar.disabled = true;
+          this.dataset.filas = '';
         }
       } else {
-        nameEl.textContent = 'Seleccionar archivo';
-        statusEl.textContent = 'Pendiente';
-        statusEl.className = 'file-status empty';
-        wrapper.classList.remove('loaded');
-        validEl.textContent = '';
+        if (nameEl) nameEl.textContent = 'Seleccionar archivo';
+        if (statusEl) {
+          statusEl.textContent = 'Pendiente';
+          statusEl.className = 'file-status empty';
+        }
+        if (wrapper) wrapper.classList.remove('loaded');
+        if (validEl) validEl.textContent = '';
         archivoValido = false;
-        btnAnalizar.disabled = true;
-        input.dataset.filas = '';
+        if (btnAnalizar) btnAnalizar.disabled = true;
+        this.dataset.filas = '';
       }
     });
 
     // Drag and drop
     if (wrapper) {
-      wrapper.addEventListener('dragover', (e) => {
+      const newWrapper = wrapper.cloneNode(true);
+      wrapper.parentNode.replaceChild(newWrapper, wrapper);
+      
+      newWrapper.addEventListener('dragover', (e) => {
         e.preventDefault();
-        wrapper.classList.add('dragover');
+        newWrapper.classList.add('dragover');
       });
-      wrapper.addEventListener('dragleave', () => {
-        wrapper.classList.remove('dragover');
+      newWrapper.addEventListener('dragleave', () => {
+        newWrapper.classList.remove('dragover');
       });
-      wrapper.addEventListener('drop', (e) => {
+      newWrapper.addEventListener('drop', (e) => {
         e.preventDefault();
-        wrapper.classList.remove('dragover');
+        newWrapper.classList.remove('dragover');
         if (e.dataTransfer.files.length) {
-          input.files = e.dataTransfer.files;
-          input.dispatchEvent(new Event('change'));
+          const inputField = newWrapper.querySelector('input[type="file"]');
+          if (inputField) {
+            inputField.files = e.dataTransfer.files;
+            inputField.dispatchEvent(new Event('change'));
+          }
         }
       });
     }
@@ -168,7 +188,14 @@ function render() {
     mapaEmpaques = pkg || {};
   });
 
-  document.getElementById("btn-analizar-kacosa").addEventListener("click", procesarArchivo);
+  // Evento del botón analizar
+  const btnAnalizarNew = document.getElementById("btn-analizar-kacosa");
+  if (btnAnalizarNew) {
+    // Remover listeners anteriores
+    const newBtn = btnAnalizarNew.cloneNode(true);
+    btnAnalizarNew.parentNode.replaceChild(newBtn, btnAnalizarNew);
+    newBtn.addEventListener("click", procesarArchivo);
+  }
 }
 
 /**
@@ -220,34 +247,38 @@ async function procesarArchivo() {
   const input = document.getElementById("input-stock-kacosa");
   const estado = document.getElementById("estado-alertas");
   const resultado = document.getElementById("resultado-alertas");
-  resultado.innerHTML = "";
+  if (resultado) resultado.innerHTML = "";
 
-  if (!archivoValido || !input.files || input.files.length === 0) {
-    estado.textContent = "⚠️ El archivo no es válido. Verifica que tenga las columnas correctas y solo centros 1000/3000.";
+  if (!archivoValido || !input || !input.files || input.files.length === 0) {
+    if (estado) estado.textContent = "⚠️ El archivo no es válido. Verifica que tenga las columnas correctas y solo centros 1000/3000.";
     return;
   }
 
   try {
     const btnAnalizar = document.getElementById("btn-analizar-kacosa");
-    btnAnalizar.disabled = true;
-    btnAnalizar.textContent = "⏳ Analizando...";
-    estado.textContent = "Procesando archivo...";
+    if (btnAnalizar) {
+      btnAnalizar.disabled = true;
+      btnAnalizar.textContent = "⏳ Analizando...";
+    }
+    if (estado) estado.textContent = "Procesando archivo...";
 
     // Recuperar las filas guardadas en el dataset
     const filasData = input.dataset.filas;
     if (!filasData) {
-      estado.textContent = "⚠️ Error: No se encontraron datos del archivo. Vuelve a seleccionarlo.";
-      btnAnalizar.disabled = false;
-      btnAnalizar.textContent = "📊 Analizar stock";
+      if (estado) estado.textContent = "⚠️ Error: No se encontraron datos del archivo. Vuelve a seleccionarlo.";
+      if (btnAnalizar) {
+        btnAnalizar.disabled = false;
+        btnAnalizar.textContent = "📊 Analizar stock";
+      }
       return;
     }
 
     const filas = JSON.parse(filasData);
 
-    estado.textContent = "Agrupando stock por material...";
+    if (estado) estado.textContent = "Agrupando stock por material...";
     const stockPorMaterial = agruparStockKacosa(filas);
 
-    estado.textContent = "Cruzando contra Alta Rotación y los últimos análisis de las tiendas...";
+    if (estado) estado.textContent = "Cruzando contra Alta Rotación y los últimos análisis de las tiendas...";
     const resp = await callBridge("alertasKacosa", { 
       stockKacosa: stockPorMaterial,
       periodoMeses: periodoSeleccionado,
@@ -255,23 +286,30 @@ async function procesarArchivo() {
     });
 
     if (!resp.ok) {
-      estado.textContent = "Error: " + resp.error;
-      btnAnalizar.disabled = false;
-      btnAnalizar.textContent = "📊 Analizar stock";
+      if (estado) estado.textContent = "Error: " + resp.error;
+      if (btnAnalizar) {
+        btnAnalizar.disabled = false;
+        btnAnalizar.textContent = "📊 Analizar stock";
+      }
       return;
     }
 
-    estado.textContent = `Listo — ${resp.alertas.length} alerta(s) encontrada(s).`;
+    if (estado) estado.textContent = `Listo — ${resp.alertas.length} alerta(s) encontrada(s).`;
     mostrarAlertas(resp.alertas);
 
-    btnAnalizar.disabled = false;
-    btnAnalizar.textContent = "📊 Analizar stock";
+    if (btnAnalizar) {
+      btnAnalizar.disabled = false;
+      btnAnalizar.textContent = "📊 Analizar stock";
+    }
 
   } catch (err) {
-    estado.textContent = "Error al procesar el archivo: " + err.message;
+    const estado = document.getElementById("estado-alertas");
+    if (estado) estado.textContent = "Error al procesar el archivo: " + err.message;
     const btnAnalizar = document.getElementById("btn-analizar-kacosa");
-    btnAnalizar.disabled = false;
-    btnAnalizar.textContent = "📊 Analizar stock";
+    if (btnAnalizar) {
+      btnAnalizar.disabled = false;
+      btnAnalizar.textContent = "📊 Analizar stock";
+    }
   }
 }
 
@@ -312,7 +350,7 @@ function mostrarAlertas(alertas) {
   const resultado = document.getElementById("resultado-alertas");
 
   if (alertas.length === 0) {
-    resultado.innerHTML = `<div class="card"><p class="vista-sub" style="margin:0">No hay alertas — todo el stock de alta rotación está cubierto. 🎉</p></div>`;
+    if (resultado) resultado.innerHTML = `<div class="card"><p class="vista-sub" style="margin:0">No hay alertas — todo el stock de alta rotación está cubierto. 🎉</p></div>`;
     return;
   }
 
@@ -331,80 +369,89 @@ function mostrarAlertas(alertas) {
     distribucion: a.distribucionPorTienda || {}
   }));
 
-  resultado.innerHTML = `
-    <div class="kpi-grid">
-      <div class="kpi-card rojo">
-        <div class="label">Sin stock en Kacosa</div>
-        <div class="valor">${sinStock.length}</div>
-      </div>
-      <div class="kpi-card">
-        <div class="label">Stock insuficiente</div>
-        <div class="valor">${stockBajo.length}</div>
-      </div>
-    </div>
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
-        <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Lista de alertas</h3>
-        <div style="display:flex; gap:10px; flex-wrap:wrap">
-          <input type="text" id="alertas-buscar" placeholder="🔍 Buscar por código o descripción..." 
-                 style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
-          <button id="btn-descargar-alertas" class="btn-primario" style="padding:8px 16px; font-size:12px; margin:0">
-            📥 Descargar Excel
-          </button>
+  if (resultado) {
+    resultado.innerHTML = `
+      <div class="kpi-grid">
+        <div class="kpi-card rojo">
+          <div class="label">Sin stock en Kacosa</div>
+          <div class="valor">${sinStock.length}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="label">Stock insuficiente</div>
+          <div class="valor">${stockBajo.length}</div>
         </div>
       </div>
-      <div id="alertas-tabla-container"></div>
-    </div>
-  `;
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
+          <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Lista de alertas</h3>
+          <div style="display:flex; gap:10px; flex-wrap:wrap">
+            <input type="text" id="alertas-buscar" placeholder="🔍 Buscar por código o descripción..." 
+                   style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+            <button id="btn-descargar-alertas" class="btn-primario" style="padding:8px 16px; font-size:12px; margin:0">
+              📥 Descargar Excel
+            </button>
+          </div>
+        </div>
+        <div id="alertas-tabla-container"></div>
+      </div>
+    `;
 
-  const columnas = [
-    { key: 'codigo', label: 'Código' },
-    { key: 'descripcion', label: 'Descripción' },
-    { key: 'clase', label: 'Clase' },
-    { key: 'stockKacosa', label: 'Stock Kacosa', numeric: true },
-    { key: 'totalAPedir', label: 'A pedir (todas)', numeric: true },
-    { key: 'proyeccionCompra', label: 'Proyección compra', numeric: true },
-    { key: 'empaque', label: 'Empaque', numeric: true },
-    { key: 'periodoDeAbastecimiento', label: 'Periodo de abastecimiento' },
-    { key: 'tipo', label: 'Alerta' }
-  ];
+    const columnas = [
+      { key: 'codigo', label: 'Código' },
+      { key: 'descripcion', label: 'Descripción' },
+      { key: 'clase', label: 'Clase' },
+      { key: 'stockKacosa', label: 'Stock Kacosa', numeric: true },
+      { key: 'totalAPedir', label: 'A pedir (todas)', numeric: true },
+      { key: 'proyeccionCompra', label: 'Proyección compra', numeric: true },
+      { key: 'empaque', label: 'Empaque', numeric: true },
+      { key: 'periodoDeAbastecimiento', label: 'Periodo de abastecimiento' },
+      { key: 'tipo', label: 'Alerta' }
+    ];
 
-  const container = document.getElementById('alertas-tabla-container');
-  const { renderizar } = crearTablaPaginada(container, columnas, 50);
-  
-  renderizar(datosTabla);
-
-  document.getElementById('alertas-buscar').addEventListener('input', (e) => {
-    const termino = e.target.value.toLowerCase().trim();
-    if (!termino) {
+    const container = document.getElementById('alertas-tabla-container');
+    if (container) {
+      const { renderizar } = crearTablaPaginada(container, columnas, 50);
       renderizar(datosTabla);
-      return;
     }
-    const filtrados = datosTabla.filter(m => 
-      String(m.codigo).toLowerCase().includes(termino) || 
-      String(m.descripcion).toLowerCase().includes(termino)
-    );
-    renderizar(filtrados);
-  });
 
-  document.getElementById("btn-descargar-alertas").addEventListener("click", () => descargarAlertasExcel(alertas));
-
-  // Agregar botón de distribución en cada fila
-  setTimeout(() => {
-    document.querySelectorAll('#alertas-tabla-container tbody tr').forEach((row, index) => {
-      const alerta = alertas[index];
-      if (alerta && Object.keys(alerta.distribucionPorTienda || {}).length > 0) {
-        const td = row.querySelector('td:last-child');
-        if (td) {
-          const btn = document.createElement('button');
-          btn.textContent = '📊 Ver distribución';
-          btn.style.cssText = 'padding:4px 12px; border:none; border-radius:4px; background:var(--azul-base); color:#fff; cursor:pointer; font-size:11px';
-          btn.addEventListener('click', () => mostrarDistribucion(alerta));
-          td.appendChild(btn);
+    const buscar = document.getElementById('alertas-buscar');
+    if (buscar) {
+      buscar.addEventListener('input', (e) => {
+        const termino = e.target.value.toLowerCase().trim();
+        if (!termino) {
+          renderizar(datosTabla);
+          return;
         }
-      }
-    });
-  }, 100);
+        const filtrados = datosTabla.filter(m => 
+          String(m.codigo).toLowerCase().includes(termino) || 
+          String(m.descripcion).toLowerCase().includes(termino)
+        );
+        renderizar(filtrados);
+      });
+    }
+
+    const descargar = document.getElementById('btn-descargar-alertas');
+    if (descargar) {
+      descargar.addEventListener('click', () => descargarAlertasExcel(alertas));
+    }
+
+    // Agregar botón de distribución en cada fila
+    setTimeout(() => {
+      document.querySelectorAll('#alertas-tabla-container tbody tr').forEach((row, index) => {
+        const alerta = alertas[index];
+        if (alerta && Object.keys(alerta.distribucionPorTienda || {}).length > 0) {
+          const td = row.querySelector('td:last-child');
+          if (td) {
+            const btn = document.createElement('button');
+            btn.textContent = '📊 Ver distribución';
+            btn.style.cssText = 'padding:4px 12px; border:none; border-radius:4px; background:var(--azul-base); color:#fff; cursor:pointer; font-size:11px';
+            btn.addEventListener('click', () => mostrarDistribucion(alerta));
+            td.appendChild(btn);
+          }
+        }
+      });
+    }, 100);
+  }
 }
 
 function mostrarDistribucion(alerta) {
@@ -522,8 +569,14 @@ function descargarAlertasExcel(alertas) {
   notificarExito(`Se descargó el Excel con ${filas.length} alerta(s) y proyección de compra por tienda.`, { titulo: "Excel descargado" });
 }
 
+// Ejecutar render cuando se cambie a esta vista
 document.addEventListener("kacosa:vista-cambiada", (e) => {
   if (e.detail.vista === "vista-alertas-kacosa") {
     render();
   }
 });
+
+// Ejecutar render inmediatamente si la vista actual es alertas-kacosa
+if (document.querySelector("#vista-alertas-kacosa.activa")) {
+  render();
+}
