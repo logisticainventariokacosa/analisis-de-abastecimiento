@@ -102,23 +102,25 @@ function mostrarDashboard(analisis) {
   
   // Convertir TODOS los valores numéricos correctamente
   materialesCache = analisis.materiales.map(m => {
-    const aPedir = typeof m.aPedir === 'number' ? m.aPedir : (Number(m.aPedir) || 0);
-    const totalVentas = typeof m.totalVentas === 'number' ? m.totalVentas : (Number(m.totalVentas) || 0);
-    const promedio = typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : (Number(m.promedioVentasPeriodo) || 0);
-    const stockTienda = typeof m.stockTienda === 'number' ? m.stockTienda : (Number(m.stockTienda) || 0);
-    const stockKacosa = typeof m.stockKacosa === 'number' ? m.stockKacosa : (Number(m.stockKacosa) || 0);
-    
+    // Cada propiedad viene de leerAnalisis_ del GS, que ya mapea correctamente
+    // Pero por seguridad, convertimos todo a número donde corresponda
     return {
       ...m,
-      aPedir: aPedir,
-      totalVentas: totalVentas,
-      promedioVentasPeriodo: promedio,
-      stockTienda: stockTienda,
-      stockKacosa: stockKacosa,
-      // Asegurar que estos también sean números
-      aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : (Number(m.aPedirIdeal) || 0),
-      pendiente: typeof m.pendiente === 'number' ? m.pendiente : (Number(m.pendiente) || 0),
-      empaque: typeof m.empaque === 'number' ? m.empaque : (Number(m.empaque) || 1)
+      codigo: String(m.codigo || ''),
+      descripcion: String(m.descripcion || ''),
+      clase: String(m.clase || ''),
+      totalVentas: typeof m.totalVentas === 'number' ? m.totalVentas : Number(m.totalVentas) || 0,
+      promedioVentasPeriodo: typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : Number(m.promedioVentasPeriodo) || 0,
+      stockTienda: typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0,
+      stockKacosa: typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0,
+      aPedir: typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0,
+      aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : Number(m.aPedirIdeal) || 0,
+      pendiente: typeof m.pendiente === 'number' ? m.pendiente : Number(m.pendiente) || 0,
+      empaque: typeof m.empaque === 'number' ? m.empaque : Number(m.empaque) || 1,
+      periodoVentas: String(m.periodoVentas || ''),
+      periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
+      rangoSeguridadUsado: String(m.rangoSeguridadUsado || ''),
+      tienda: String(m.tienda || '')
     };
   });
   
