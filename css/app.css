@@ -7,11 +7,12 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   min-height: 100vh;
+  height: 100%;
 }
 
 .oculto { display: none !important; }
 
-/* Overlay del menú lateral en móvil */
+/* Overlay del menú lateral */
 .overlay-sidebar {
   display: none;
   position: fixed;
@@ -38,7 +39,7 @@ body {
   background: var(--fondo);
 }
 
-/* --- HEADER: sticky, full-width, siempre visible --- */
+/* --- HEADER: sticky, siempre visible al hacer scroll --- */
 .app-header {
   display: flex;
   align-items: center;
@@ -56,6 +57,17 @@ body {
   left: 0;
   right: 0;
   min-height: 64px;
+  /* Asegurar que se mantenga fijo */
+  backdrop-filter: blur(0px);
+  -webkit-backdrop-filter: blur(0px);
+}
+
+/* Forzar que el header sea sticky en todos los navegadores */
+@supports (position: sticky) {
+  .app-header {
+    position: sticky;
+    top: 0;
+  }
 }
 
 #btn-hamburguesa {
@@ -1002,7 +1014,7 @@ tbody tr:hover {
   transform: scale(1.05);
 }
 
-/* --- FOOTER: estilo limpio y profesional como el Dashboard --- */
+/* --- FOOTER: estilo limpio y profesional --- */
 .app-footer {
   flex-shrink: 0;
   background: linear-gradient(135deg, #0F1A2E, #1E2F47);
@@ -1022,6 +1034,7 @@ tbody tr:hover {
   box-sizing: border-box;
   border-top: 1px solid rgba(255,255,255,0.06);
   letter-spacing: 0.3px;
+  margin-top: auto;
 }
 
 .app-footer-marca {
@@ -1053,7 +1066,6 @@ tbody tr:hover {
   font-weight: 600;
 }
 
-/* Ocultar separadores extra en móvil */
 @media (max-width: 600px) {
   .app-footer {
     padding: 12px 16px;
@@ -1064,7 +1076,7 @@ tbody tr:hover {
   .app-footer-marca { font-size: 12px; }
 }
 
-/* --- Notificación de éxito --- */
+/* --- Notificación --- */
 #kacosa-notificacion {
   position: fixed;
   inset: 0;
