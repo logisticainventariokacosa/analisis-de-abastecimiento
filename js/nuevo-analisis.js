@@ -5,7 +5,7 @@ import { agruparStock } from "./stock-parser.js";
 import { cargarPaquetes } from "./paquetes.js";
 import { calcularAbastecimiento } from "./calculo-abastecimiento.js";
 import { detectarCandidatosLocal, confirmarConGemini, fusionarDuplicados } from "./deteccion-duplicados.js";
-import { TIENDAS, nombrePorId } from "./tiendas.js";
+import { TIENDAS, nombrePorId, centrosDeTienda } from "./tiendas.js";
 import { callBridge } from "./bridge.js";
 import { crearTablaPaginada } from "./tabla-utils.js";
 import { leerXLSXGenerico, procesarPendientesSync, restarPendientesSync } from "./pendientes-sync-parser.js";
@@ -242,8 +242,8 @@ async function ejecutarAnalisis() {
     return;
   }
 
-  const centroTienda = TIENDAS.find(t => t.id === tienda)?.centro;
-  if (!centroTienda) {
+  const centrosValidos = centrosDeTienda(tienda);
+  if (centrosValidos.length === 0) {
     estadoTexto.textContent = "No se encontró el centro SAP para esa tienda.";
     return;
   }
@@ -259,14 +259,14 @@ async function ejecutarAnalisis() {
     const filasStockKacosa = parsearMHT(await archivoStockKacosa.text());
 
     estadoTexto.textContent = "Validando centros de los archivos...";
-    const errorValidacion = validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroTienda);
+    const errorValidacion = validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centrosValidos);
     if (errorValidacion) {
       estadoTexto.textContent = "⚠️ " + errorValidacion;
       return;
     }
 
     const ventasProcesadas = procesarVentas(filasVentas);
-    const stockTienda = agruparStock(filasStockTienda, [centroTienda]);
+    const stockTienda = agruparStock(filasStockTienda, centrosValidos);
     const stockKacosa = agruparStock(filasStockKacosa, CENTROS_KACOSA);
 
     // Archivo opcional de pendientes por sincronizar
@@ -381,9 +381,15 @@ async function finalizarCalculo(gruposConfirmados) {
 
   const { resultadoConAnexos } = anexarAltaRotacionFaltante(
     resultado, estado.stockTienda, estado.stockKacosa, altaRotacion,
-    resultado[0]?.periodoAnalizado || ""
+    resultado[0]?.periodoVentas || "", resultado[0]?.periodoAbastecimiento || "", resultado[0]?.rangoSeguridadUsado || ""
   );
   resultado = resultadoConAnexos;
+
+  // Agrega Tienda y Fecha_Analisis a cada fila (ahora forman parte del esquema de columnas)
+  resultado.forEach(m => {
+    m.tienda = nombrePorId(estado.tiendaSeleccionada);
+    m.fechaAnalisis = estado.fechaAnalisis;
+  });
 
   const sugerencias = generarSugerencias(resultado, estado.stockTienda, estado.stockKacosa, altaRotacion);
   const sinRotacion = generarSinRotacion(estado.stockKacosa, estado.stockTienda, estado.ventasProcesadas);
@@ -391,7 +397,10 @@ async function finalizarCalculo(gruposConfirmados) {
   estado.resultadoFinal = resultado;
   estado.sugerencias = sugerencias;
   estado.sinRotacion = sinRotacion;
-  
+
+  const mesesUsadosRedondeado = Math.round(estado.ventasProcesadas.rangoFechas?.meses || 0);
+  const semanasUsadasRedondeado = Math.round(estado.ventasProcesadas.rangoFechas?.semanas || 0);
+
   // Guardar análisis completo para persistencia
   estado.analisisCompleto = {
     resultado: resultado,
@@ -401,8 +410,8 @@ async function finalizarCalculo(gruposConfirmados) {
     fechaAnalisis: estado.fechaAnalisis,
     periodo: estado.periodo,
     margenPct: estado.margenPct,
-    mesesUsados: estado.ventasProcesadas.rangoFechas?.meses,
-    semanasUsadas: estado.ventasProcesadas.rangoFechas?.semanas
+    mesesUsados: mesesUsadosRedondeado,
+    semanasUsadas: semanasUsadasRedondeado
   };
 
   // Guardar en window para otros módulos
@@ -411,15 +420,13 @@ async function finalizarCalculo(gruposConfirmados) {
     fechaAnalisis: estado.fechaAnalisis,
     periodo: estado.periodo,
     margenPct: estado.margenPct,
-    mesesUsados: estado.ventasProcesadas.rangoFechas?.meses,
-    semanasUsadas: estado.ventasProcesadas.rangoFechas?.semanas,
+    mesesUsados: mesesUsadosRedondeado,
+    semanasUsadas: semanasUsadasRedondeado,
     materiales: resultado,
     sugerencias
   };
 
-  const mesesUsados = estado.ventasProcesadas.rangoFechas?.meses || '?';
-  const semanasUsadas = estado.ventasProcesadas.rangoFechas?.semanas || '?';
-  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsados} meses (${semanasUsadas} semanas).`;
+  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsadosRedondeado} meses (${semanasUsadasRedondeado} semanas).`;
   
   mostrarResultados(resultado, sugerencias);
 
@@ -465,7 +472,7 @@ function mostrarResultados(resultado, sugerencias) {
 
   const infoPeriodo = window.KACOSA.ultimoAnalisis;
   const textoPeriodo = infoPeriodo 
-    ? `Período usado: ${infoPeriodo.mesesUsados || '?'} meses (${infoPeriodo.semanasUsadas || '?'} semanas)`
+    ? `Período usado: ${infoPeriodo.mesesUsados ?? '?'} meses (${infoPeriodo.semanasUsadas ?? '?'} semanas)`
     : '';
 
   cont.innerHTML = `
@@ -522,7 +529,8 @@ function mostrarResultados(resultado, sugerencias) {
     { key: 'codigo', label: 'Código' },
     { key: 'descripcion', label: 'Descripción' },
     { key: 'clase', label: 'Clase' },
-    { key: 'ventasPeriodo', label: 'Ventas periodo', numeric: true },
+    { key: 'totalVentas', label: 'Total ventas', numeric: true },
+    { key: 'promedioVentasPeriodo', label: 'Promedio ventas periodo', numeric: true },
     { key: 'stockTienda', label: 'Stock tienda', numeric: true },
     { key: 'stockKacosa', label: 'Stock Kacosa', numeric: true },
     { key: 'aPedir', label: 'A pedir', numeric: true }
@@ -559,7 +567,7 @@ function mostrarResultados(resultado, sugerencias) {
  * - Stock tienda: un único centro, igual al de la tienda seleccionada.
  * - Stock Kacosa: solo centros 1000 y/o 3000, ningún otro.
  */
-function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroTienda) {
+function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centrosValidos) {
   const extraerCentros = (filas) =>
     new Set(filas.map(f => String(f["Centro"] || "").trim()).filter(Boolean));
 
@@ -567,24 +575,18 @@ function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroT
   if (centrosVentas.size === 0) {
     return "El archivo de ventas no tiene datos de Centro reconocibles.";
   }
-  if (centrosVentas.size > 1) {
-    return `El archivo de ventas contiene más de un centro (${[...centrosVentas].join(", ")}). Debe contener un único centro, el de la tienda seleccionada.`;
-  }
-  const centroVentasDetectado = [...centrosVentas][0];
-  if (centroVentasDetectado !== centroTienda) {
-    return `El archivo de ventas corresponde al centro ${centroVentasDetectado}, pero seleccionaste una tienda con centro ${centroTienda}. Verifica que subiste el archivo correcto.`;
+  const centrosVentasInvalidos = [...centrosVentas].filter(c => !centrosValidos.includes(c));
+  if (centrosVentasInvalidos.length > 0 || centrosVentas.size > centrosValidos.length) {
+    return `El archivo de ventas contiene el/los centro(s) ${[...centrosVentas].join(", ")}, pero la tienda seleccionada corresponde a ${centrosValidos.join(" o ")}. Verifica que subiste el archivo correcto.`;
   }
 
   const centrosStockTienda = extraerCentros(filasStockTienda);
   if (centrosStockTienda.size === 0) {
     return "El archivo de stock de la tienda no tiene datos de Centro reconocibles.";
   }
-  if (centrosStockTienda.size > 1) {
-    return `El archivo de stock de la tienda contiene más de un centro (${[...centrosStockTienda].join(", ")}). Debe contener un único centro.`;
-  }
-  const centroStockDetectado = [...centrosStockTienda][0];
-  if (centroStockDetectado !== centroTienda) {
-    return `El archivo de stock de tienda corresponde al centro ${centroStockDetectado}, pero seleccionaste una tienda con centro ${centroTienda}. Verifica que subiste el archivo correcto.`;
+  const centrosStockInvalidos = [...centrosStockTienda].filter(c => !centrosValidos.includes(c));
+  if (centrosStockInvalidos.length > 0 || centrosStockTienda.size > centrosValidos.length) {
+    return `El archivo de stock de tienda contiene el/los centro(s) ${[...centrosStockTienda].join(", ")}, pero la tienda seleccionada corresponde a ${centrosValidos.join(" o ")}. Verifica que subiste el archivo correcto.`;
   }
 
   const centrosStockKacosa = extraerCentros(filasStockKacosa);
@@ -606,7 +608,7 @@ function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centroT
  * - NO tienen stock en la tienda
  * Se agregan por la cantidad mínima de empaque.
  */
-function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRotacion, periodoAnalizado) {
+function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRotacion, periodoVentas, periodoAbastecimiento, rangoSeguridadUsado) {
   const codigosEnResultado = new Set(resultado.map(m => m.codigo));
   const anexados = [];
 
@@ -629,14 +631,17 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
       codigo,
       descripcion: m.descripcion,
       clase: m.clase,
-      ventasPeriodo: 0,
+      totalVentas: 0,
+      promedioVentasPeriodo: 0,
       stockTienda: stockTiendaDisp,
       stockKacosa: stockKacosaDisp,
       aPedir,
       aPedirIdeal: aPedir,
       pendiente: 0,
       empaque,
-      periodoAnalizado
+      periodoVentas,
+      periodoAbastecimiento,
+      rangoSeguridadUsado
     });
     anexados.push(codigo);
   });
@@ -784,44 +789,65 @@ function construirWorkbookCompleto() {
       { label: "Clase D", valor: porClase.D, color: "FF6B7280" }
     ],
     [
-      `Período analizado: ${pedido[0]?.periodoAnalizado || noPedido[0]?.periodoAnalizado || "—"}`,
+      `Período de ventas analizado: ${pedido[0]?.periodoVentas || noPedido[0]?.periodoVentas || "—"}`,
       `Horizonte de abastecimiento: ${pedido[0]?.periodoAbastecimiento || "—"}`,
+      `Rango de seguridad usado: ${pedido[0]?.rangoSeguridadUsado || "—"}`,
       "Generado automáticamente por el sistema de Abastecimiento KACOSA."
     ]
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-  const columnasBase = [
-    { key: 'codigo', label: 'Código', ancho: 14 },
-    { key: 'descripcion', label: 'Descripción', ancho: 38 },
+  // Esquema completo de columnas para A_Pedir y No_Amerito_Pedido
+  const columnasCompletas = [
+    { key: 'codigo', label: 'Codigo', ancho: 14 },
+    { key: 'descripcion', label: 'Descripcion', ancho: 38 },
     { key: 'clase', label: 'Clase', ancho: 8 },
-    { key: 'ventasPeriodo', label: 'Ventas Período', ancho: 14 },
-    { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 },
-    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 },
-    { key: 'aPedir', label: 'A Pedir', ancho: 10 }
+    { key: 'totalVentas', label: 'Total_Ventas', ancho: 12 },
+    { key: 'promedioVentasPeriodo', label: 'Promedio_Ventas_Periodo', ancho: 16 },
+    { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
+    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
+    { key: 'aPedir', label: 'A_Pedir', ancho: 10 },
+    { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
+    { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
+    { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
+    { key: 'tienda', label: 'Tienda', ancho: 14 },
+    { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
   ];
 
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasBase, { colorearPorClase: true }), "A_Pedir");
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasBase, { colorearPorClase: true }), "No_Amerito_Pedido");
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasCompletas, {
+    colorearPorClase: true,
+    columnasDestacadas: [{ key: 'aPedir', color: 'FFC4432B' }]
+  }), "A_Pedir");
+
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasCompletas, {
+    colorearPorClase: true
+  }), "No_Amerito_Pedido");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
     pendienteStock.map(m => ({ ...m, pendiente: m.aPedirIdeal - m.aPedir })),
     [
-      { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
-      { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'aPedirIdeal', label: 'A Pedir Ideal', ancho: 12 },
-      { key: 'aPedir', label: 'A Pedir Real', ancho: 12 }, { key: 'pendiente', label: 'Pendiente', ancho: 12 },
-      { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
-    ], { colorearPorClase: true }
+      { key: 'codigo', label: 'Codigo', ancho: 14 }, { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+      { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'aPedirIdeal', label: 'A_Pedir_Ideal', ancho: 12 },
+      { key: 'aPedir', label: 'A_Pedir_Real', ancho: 12 }, { key: 'pendiente', label: 'Pendiente', ancho: 12 },
+      { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
+      { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
+      { key: 'tienda', label: 'Tienda', ancho: 14 },
+      { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 }
+    ],
+    {
+      colorearPorClase: true,
+      columnasDestacadas: [{ key: 'pendiente', color: 'FFC4432B' }]
+    }
   ), "Pendiente_Stock_Kacosa");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
-    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
-    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+    { key: 'codigo', label: 'Codigo', ancho: 14 }, { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
   ]), "Sugerencias");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada((estado.sinRotacion || []), [
-    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
-    { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 }, { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
+    { key: 'codigo', label: 'Codigo', ancho: 14 }, { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+    { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 }, { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
   ]), "Sin_Rotacion");
 
   return wb;
