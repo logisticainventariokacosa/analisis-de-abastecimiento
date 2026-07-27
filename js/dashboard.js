@@ -15,7 +15,7 @@ function tiendasDelUsuario() {
 }
 
 async function render() {
-  if (vistaConstruida) return; // ya construida: se conserva al cambiar de módulo
+  if (vistaConstruida) return;
   const cont = document.getElementById("dashboard-contenido");
   if (!cont) return;
 
@@ -64,7 +64,6 @@ async function cargarAnalisis() {
   const resultadoDiv = document.getElementById("dash-resultado");
   resultadoDiv.innerHTML = `<p class="vista-sub">Cargando último análisis de ${nombrePorId(tiendaSeleccionada)}...</p>`;
 
-  // Si ya tenemos el análisis en caché, mostrarlo
   if (analisisCache && analisisCache.tienda === tiendaSeleccionada) {
     mostrarDashboard(analisisCache);
     return;
@@ -91,7 +90,7 @@ async function cargarAnalisis() {
 
   analisisCache = {
     tienda: tiendaSeleccionada,
-    fechaAnalisis: resp.fechaAnalisis,
+    fechaAnalisis: resp.fechaAnalisis || "Sin fecha",
     materiales: resp.materiales
   };
   
@@ -101,24 +100,38 @@ async function cargarAnalisis() {
 function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
   
-  // Convertir todos los valores numéricos a número, evitando NaN y fechas
-  materialesCache = analisis.materiales.map(m => ({
-    ...m,
-    aPedir: typeof m.aPedir === 'number' ? m.aPedir : (Number(m.aPedir) || 0),
-    totalVentas: typeof m.totalVentas === 'number' ? m.totalVentas : (Number(m.totalVentas) || 0),
-    promedioVentasPeriodo: typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : (Number(m.promedioVentasPeriodo) || 0),
-    stockTienda: typeof m.stockTienda === 'number' ? m.stockTienda : (Number(m.stockTienda) || 0),
-    stockKacosa: typeof m.stockKacosa === 'number' ? m.stockKacosa : (Number(m.stockKacosa) || 0),
-    aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : (Number(m.aPedirIdeal) || 0),
-    pendiente: typeof m.pendiente === 'number' ? m.pendiente : (Number(m.pendiente) || 0),
-    empaque: typeof m.empaque === 'number' ? m.empaque : (Number(m.empaque) || 1)
-  }));
+  // Convertir TODOS los valores numéricos correctamente
+  materialesCache = analisis.materiales.map(m => {
+    const aPedir = typeof m.aPedir === 'number' ? m.aPedir : (Number(m.aPedir) || 0);
+    const totalVentas = typeof m.totalVentas === 'number' ? m.totalVentas : (Number(m.totalVentas) || 0);
+    const promedio = typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : (Number(m.promedioVentasPeriodo) || 0);
+    const stockTienda = typeof m.stockTienda === 'number' ? m.stockTienda : (Number(m.stockTienda) || 0);
+    const stockKacosa = typeof m.stockKacosa === 'number' ? m.stockKacosa : (Number(m.stockKacosa) || 0);
+    
+    return {
+      ...m,
+      aPedir: aPedir,
+      totalVentas: totalVentas,
+      promedioVentasPeriodo: promedio,
+      stockTienda: stockTienda,
+      stockKacosa: stockKacosa,
+      // Asegurar que estos también sean números
+      aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : (Number(m.aPedirIdeal) || 0),
+      pendiente: typeof m.pendiente === 'number' ? m.pendiente : (Number(m.pendiente) || 0),
+      empaque: typeof m.empaque === 'number' ? m.empaque : (Number(m.empaque) || 1)
+    };
+  });
   
-  const totalAPedir = materialesCache.reduce((acc, m) => acc + (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0), 0);
-  const quiebres = materialesCache.filter(m => (typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0) <= 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0).length;
+  // Calcular total a pedir
+  const totalAPedir = materialesCache.reduce((acc, m) => acc + (m.aPedir || 0), 0);
+  
+  // Contar quiebres (stock Kacosa <= 0 y aPedir === 0)
+  const quiebres = materialesCache.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0).length;
+  
+  // Contar por clase
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
-    const clase = m.clase || '';
+    const clase = (m.clase || '').toUpperCase();
     if (porClase[clase] !== undefined) porClase[clase]++; 
   });
 
@@ -168,7 +181,6 @@ function mostrarDashboard(analisis) {
   const container = document.getElementById('dash-tabla-container');
   const { renderizar } = crearTablaPaginada(container, columnas, 50);
   
-  // Pasar los datos con valores ya convertidos
   renderizar(materialesCache);
 
   // Evento de búsqueda
@@ -199,17 +211,16 @@ function descargarExcelDashboard(materiales, analisis) {
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
-  // Separar por categorías (aproximado con los campos guardados en Sheets)
-  const pedido = materiales.filter(m => (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) > 0);
-  const noPedido = materiales.filter(m => (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
-  const pendienteStock = materiales.filter(m => (typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0) <= 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
-  const sugerencias = materiales.filter(m => (typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0) > 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
-  const sinRotacion = materiales.filter(m => (typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0) > 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
+  const pedido = materiales.filter(m => (m.aPedir || 0) > 0);
+  const noPedido = materiales.filter(m => (m.aPedir || 0) === 0);
+  const pendienteStock = materiales.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0);
+  const sugerencias = materiales.filter(m => (m.stockKacosa || 0) > 0 && (m.aPedir || 0) === 0);
+  const sinRotacion = materiales.filter(m => (m.stockTienda || 0) > 0 && (m.aPedir || 0) === 0);
 
-  const totalAPedir = pedido.reduce((acc, m) => acc + (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0), 0);
+  const totalAPedir = pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materiales.forEach(m => { 
-    const clase = m.clase || '';
+    const clase = (m.clase || '').toUpperCase();
     if (porClase[clase] !== undefined) porClase[clase]++; 
   });
 
@@ -275,7 +286,6 @@ function descargarExcelDashboard(materiales, analisis) {
 document.addEventListener("kacosa:usuario-listo", render);
 document.addEventListener("kacosa:vista-cambiada", (e) => {
   if (e.detail.vista === "vista-dashboard") {
-    // Si hay análisis en caché de otro módulo, mostrarlo
     if (window.KACOSA?.ultimoAnalisis) {
       analisisCache = {
         tienda: window.KACOSA.ultimoAnalisis.tienda,
