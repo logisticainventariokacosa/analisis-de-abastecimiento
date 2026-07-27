@@ -1153,24 +1153,97 @@ tbody tr:hover {
   cursor: pointer;
 }
 .kn-boton:hover { background: var(--azul-base-alto); }
-/* --- Sección de usuario en el sidebar --- */
-.sidebar .nav-item:last-of-type {
-  margin-bottom: 4px;
+
+/* --- Sección de usuario al final del sidebar --- */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
 }
 
-#btn-sidebar-cerrar-sesion:hover {
+.sidebar nav {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.sidebar-footer {
+  flex-shrink: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 12px 10px 16px 10px;
+  margin-top: auto;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 10px 10px 10px;
+}
+
+.sidebar-user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.sidebar-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.sidebar-user-nombre {
+  color: #fff;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-user-email {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-btn-cerrar {
+  width: calc(100% - 20px);
+  margin: 0 10px;
+  padding: 10px;
+  background: rgba(217, 74, 61, 0.15);
+  border: 1px solid rgba(217, 74, 61, 0.3);
+  border-radius: 8px;
+  color: #D94A3D;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.sidebar-btn-cerrar:hover {
   background: rgba(217, 74, 61, 0.25);
   border-color: rgba(217, 74, 61, 0.5);
 }
 
 @media (max-width: 480px) {
-  #sidebar-user-nombre {
+  .sidebar-user-nombre {
     font-size: 12px !important;
   }
-  #sidebar-user-email {
+  .sidebar-user-email {
     font-size: 10px !important;
   }
-  #btn-sidebar-cerrar-sesion {
+  .sidebar-btn-cerrar {
     font-size: 12px !important;
     padding: 8px !important;
   }
