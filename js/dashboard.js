@@ -143,6 +143,10 @@ function mostrarDashboard(analisis) {
     { key: 'codigo', label: 'Código' },
     { key: 'descripcion', label: 'Descripción' },
     { key: 'clase', label: 'Clase' },
+    { key: 'totalVentas', label: 'Total ventas', numeric: true },
+    { key: 'promedioVentasPeriodo', label: 'Promedio ventas periodo', numeric: true },
+    { key: 'stockTienda', label: 'Stock tienda', numeric: true },
+    { key: 'stockKacosa', label: 'Stock Kacosa', numeric: true },
     { key: 'aPedir', label: 'A pedir', numeric: true }
   ];
 
@@ -209,16 +213,24 @@ function descargarExcelDashboard(materiales, analisis) {
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
   const columnasBase = [
-    { key: 'codigo', label: 'Código', ancho: 14 },
-    { key: 'descripcion', label: 'Descripción', ancho: 38 },
+    { key: 'codigo', label: 'Codigo', ancho: 14 },
+    { key: 'descripcion', label: 'Descripcion', ancho: 38 },
     { key: 'clase', label: 'Clase', ancho: 8 },
-    { key: 'ventasPeriodo', label: 'Ventas Período', ancho: 14 },
-    { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 },
-    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 },
-    { key: 'aPedir', label: 'A Pedir', ancho: 10 }
+    { key: 'totalVentas', label: 'Total_Ventas', ancho: 12 },
+    { key: 'promedioVentasPeriodo', label: 'Promedio_Ventas_Periodo', ancho: 16 },
+    { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
+    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
+    { key: 'aPedir', label: 'A_Pedir', ancho: 10 },
+    { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
+    { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
+    { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
+    { key: 'tienda', label: 'Tienda', ancho: 14 }
   ];
 
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasBase, { colorearPorClase: true }), "A_Pedir");
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasBase, {
+    colorearPorClase: true,
+    columnasDestacadas: [{ key: 'aPedir', color: 'FFC4432B' }]
+  }), "A_Pedir");
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasBase, { colorearPorClase: true }), "No_Amerito_Pedido");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pendienteStock, [
