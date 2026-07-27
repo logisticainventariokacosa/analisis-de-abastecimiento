@@ -88,25 +88,37 @@ async function cargarAnalisis() {
     return;
   }
 
-  // Convertir valores numéricos
-  const materiales = resp.materiales.map(m => ({
-    ...m,
-    codigo: String(m.codigo || ''),
-    descripcion: String(m.descripcion || ''),
-    clase: String(m.clase || ''),
-    totalVentas: typeof m.totalVentas === 'number' ? m.totalVentas : Number(m.totalVentas) || 0,
-    promedioVentasPeriodo: typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : Number(m.promedioVentasPeriodo) || 0,
-    stockTienda: typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0,
-    stockKacosa: typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0,
-    aPedir: typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0,
-    aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : Number(m.aPedirIdeal) || 0,
-    pendiente: typeof m.pendiente === 'number' ? m.pendiente : Number(m.pendiente) || 0,
-    empaque: typeof m.empaque === 'number' ? m.empaque : Number(m.empaque) || 1,
-    periodoVentas: String(m.periodoVentas || ''),
-    periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
-    rangoSeguridadUsado: String(m.rangoSeguridadUsado || ''),
-    tienda: String(m.tienda || '')
-  }));
+  // Convertir valores numéricos y calcular pendiente si no existe
+  const materiales = resp.materiales.map(m => {
+    const aPedir = typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0;
+    const aPedirIdeal = typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : Number(m.aPedirIdeal) || 0;
+    const stockKacosa = typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0;
+    const stockTienda = typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0;
+    const totalVentas = typeof m.totalVentas === 'number' ? m.totalVentas : Number(m.totalVentas) || 0;
+    const promedio = typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : Number(m.promedioVentasPeriodo) || 0;
+    
+    // Calcular pendiente = aPedirIdeal - aPedir, si no existe
+    const pendiente = typeof m.pendiente === 'number' ? m.pendiente : Math.max(0, aPedirIdeal - aPedir);
+    
+    return {
+      ...m,
+      codigo: String(m.codigo || ''),
+      descripcion: String(m.descripcion || ''),
+      clase: String(m.clase || ''),
+      totalVentas: totalVentas,
+      promedioVentasPeriodo: promedio,
+      stockTienda: stockTienda,
+      stockKacosa: stockKacosa,
+      aPedir: aPedir,
+      aPedirIdeal: aPedirIdeal,
+      pendiente: pendiente,
+      empaque: typeof m.empaque === 'number' ? m.empaque : Number(m.empaque) || 1,
+      periodoVentas: String(m.periodoVentas || ''),
+      periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
+      rangoSeguridadUsado: String(m.rangoSeguridadUsado || ''),
+      tienda: String(m.tienda || '')
+    };
+  });
 
   analisisCache = {
     tienda: tiendaSeleccionada,
@@ -125,6 +137,7 @@ function mostrarDashboard(analisis) {
   const totalMaterialesAPedir = materialesCache.filter(m => (m.aPedir || 0) > 0).length;
   const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + (m.aPedir || 0), 0);
   const quiebres = materialesCache.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0).length;
+  const pendienteTotal = materialesCache.filter(m => (m.pendiente || 0) > 0).length;
   
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
@@ -144,8 +157,8 @@ function mostrarDashboard(analisis) {
         <div class="valor">${totalUnidadesAPedir}</div>
       </div>
       <div class="kpi-card rojo">
-        <div class="label">Sin stock en Kacosa</div>
-        <div class="valor">${quiebres}</div>
+        <div class="label">Pendiente por stock</div>
+        <div class="valor">${pendienteTotal}</div>
       </div>
       <div class="kpi-card">
         <div class="label">Clase A / B / C / D</div>
@@ -206,11 +219,17 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     return;
   }
 
-  // Cada fila necesita su propia Fecha_Analisis
-  const materiales = materialesOriginal.map(m => ({
-    ...m,
-    fechaAnalisis: analisis.fechaAnalisis || ''
-  }));
+  // Asegurar que pendiente esté calculado
+  const materiales = materialesOriginal.map(m => {
+    const aPedir = m.aPedir || 0;
+    const aPedirIdeal = m.aPedirIdeal || 0;
+    const pendiente = m.pendiente || Math.max(0, aPedirIdeal - aPedir);
+    return {
+      ...m,
+      pendiente: pendiente,
+      fechaAnalisis: analisis.fechaAnalisis || ''
+    };
+  });
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
@@ -283,10 +302,11 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     colorearPorClase: true
   }), "No_Amerito_Pedido");
 
+  // Pendiente_Stock_Kacosa: solo materiales con pendiente > 0
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
     pendienteStock.map(m => ({ 
       ...m, 
-      pendiente: (m.aPedirIdeal || 0) - (m.aPedir || 0) 
+      pendiente: m.pendiente || 0
     })),
     [
       { key: 'codigo', label: 'Codigo', ancho: 14 },
