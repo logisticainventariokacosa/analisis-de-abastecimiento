@@ -7,14 +7,25 @@ import { obtenerInfoPaquete, cargarPaquetes } from "./paquetes.js";
 import { notificarExito } from "./notificaciones.js";
 import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.js";
 
+// Columnas requeridas para el archivo de stock
+const COLUMNAS_STOCK = [
+  "Material", "Texto breve de material", "Centro", "Almacén", "Unidad medida base",
+  "Denominación-almacén", "Libre utilización", "Trans./Trasl.", "En control calidad",
+  "Bloqueado", "Devoluciones"
+];
+
+// Centros permitidos para Kacosa
+const CENTROS_KACOSA = ["1000", "3000"];
+
 const CENTROS_KACOSA = ["1000", "3000"];
 let ultimasAlertas = [];
 let periodoSeleccionado = 1;
 let mapaEmpaques = {};
 let vistaConstruida = false;
+let archivoValido = false;
 
 function render() {
-  if (vistaConstruida) return; // ya construida: se conserva al cambiar de módulo
+  if (vistaConstruida) return;
   const cont = document.getElementById("alertas-kacosa-contenido");
   if (!cont) return;
   vistaConstruida = true;
@@ -37,6 +48,7 @@ function render() {
           <span class="file-status empty" id="file-status-kacosa">Pendiente</span>
           <input type="file" id="input-stock-kacosa" accept=".mht,.MHT">
         </div>
+        <div id="validacion-stock-kacosa" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <div style="margin-top:16px">
@@ -48,7 +60,7 @@ function render() {
         </div>
       </div>
 
-      <button id="btn-analizar-kacosa" class="btn-primario" style="margin-top:16px; min-width:200px">
+      <button id="btn-analizar-kacosa" class="btn-primario" style="margin-top:16px; min-width:200px" disabled>
         📊 Analizar stock
       </button>
       <p id="estado-alertas" class="estado-texto" style="margin-top:12px"></p>
@@ -73,24 +85,60 @@ function render() {
     });
   });
 
-  // Event listener para el archivo
+  // Event listener para el archivo con validaciones
   const input = document.getElementById("input-stock-kacosa");
   const nameEl = document.getElementById("file-name-kacosa");
   const statusEl = document.getElementById("file-status-kacosa");
   const wrapper = document.getElementById("file-wrapper-kacosa");
+  const validEl = document.getElementById("validacion-stock-kacosa");
+  const btnAnalizar = document.getElementById("btn-analizar-kacosa");
 
   if (input) {
-    input.addEventListener('change', () => {
+    input.addEventListener('change', async () => {
+      archivoValido = false;
+      btnAnalizar.disabled = true;
+
       if (input.files && input.files[0]) {
         nameEl.textContent = input.files[0].name;
         statusEl.textContent = '✓ Cargado';
         statusEl.className = 'file-status loaded';
         wrapper.classList.add('loaded');
+
+        // Validar columnas y centros
+        try {
+          const texto = await input.files[0].text();
+          const filas = parsearMHT(texto);
+          const resultado = validarArchivoStock(filas);
+          
+          validEl.textContent = resultado.mensaje;
+          validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
+          
+          if (resultado.valido) {
+            archivoValido = true;
+            btnAnalizar.disabled = false;
+            // Guardar las filas para procesarlas después
+            input.dataset.filas = JSON.stringify(filas);
+          } else {
+            archivoValido = false;
+            btnAnalizar.disabled = true;
+            input.dataset.filas = '';
+          }
+        } catch (err) {
+          validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
+          validEl.style.color = 'var(--rojo-alerta)';
+          archivoValido = false;
+          btnAnalizar.disabled = true;
+          input.dataset.filas = '';
+        }
       } else {
         nameEl.textContent = 'Seleccionar archivo';
         statusEl.textContent = 'Pendiente';
         statusEl.className = 'file-status empty';
         wrapper.classList.remove('loaded');
+        validEl.textContent = '';
+        archivoValido = false;
+        btnAnalizar.disabled = true;
+        input.dataset.filas = '';
       }
     });
 
@@ -122,26 +170,78 @@ function render() {
   document.getElementById("btn-analizar-kacosa").addEventListener("click", procesarArchivo);
 }
 
+/**
+ * Valida que el archivo de stock tenga las columnas correctas y solo centros 1000/3000
+ */
+function validarArchivoStock(filas) {
+  if (filas.length === 0) {
+    return { valido: false, mensaje: '⚠️ El archivo está vacío o no tiene datos' };
+  }
+
+  // Validar columnas
+  const columnasExistentes = Object.keys(filas[0]);
+  const faltantes = COLUMNAS_STOCK.filter(col => !columnasExistentes.includes(col));
+
+  if (faltantes.length > 0) {
+    return { 
+      valido: false, 
+      mensaje: `⚠️ El archivo no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`
+    };
+  }
+
+  // Validar centros (solo 1000 y 3000)
+  const centros = new Set();
+  filas.forEach(f => {
+    const centro = String(f["Centro"] || "").trim();
+    if (centro) centros.add(centro);
+  });
+
+  const centrosInvalidos = [...centros].filter(c => !CENTROS_KACOSA.includes(c));
+  
+  if (centrosInvalidos.length > 0) {
+    return {
+      valido: false,
+      mensaje: `⚠️ El archivo contiene centro(s) que no pertenecen a Kacosa (${centrosInvalidos.join(", ")}). Kacosa solo puede ser 1000 y/o 3000.`
+    };
+  }
+
+  if (centros.size === 0) {
+    return { valido: false, mensaje: '⚠️ El archivo no tiene datos de Centro reconocibles.' };
+  }
+
+  return { 
+    valido: true, 
+    mensaje: `✅ Archivo válido: contiene todas las columnas requeridas y solo centros Kacosa (${[...centros].join(", ")})`
+  };
+}
+
 async function procesarArchivo() {
   const input = document.getElementById("input-stock-kacosa");
   const estado = document.getElementById("estado-alertas");
   const resultado = document.getElementById("resultado-alertas");
   resultado.innerHTML = "";
 
-  if (!input.files || input.files.length === 0) {
-    estado.textContent = "Selecciona el archivo de stock de Kacosa primero.";
+  if (!archivoValido || !input.files || input.files.length === 0) {
+    estado.textContent = "⚠️ El archivo no es válido. Verifica que tenga las columnas correctas y solo centros 1000/3000.";
     return;
   }
 
   try {
-    estado.textContent = "Leyendo archivo...";
-    const texto = await input.files[0].text();
-    const filas = parsearMHT(texto);
+    const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+    btnAnalizar.disabled = true;
+    btnAnalizar.textContent = "⏳ Analizando...";
+    estado.textContent = "Procesando archivo...";
 
-    if (filas.length === 0) {
-      estado.textContent = "El archivo no contiene datos reconocibles.";
+    // Recuperar las filas guardadas en el dataset
+    const filasData = input.dataset.filas;
+    if (!filasData) {
+      estado.textContent = "⚠️ Error: No se encontraron datos del archivo. Vuelve a seleccionarlo.";
+      btnAnalizar.disabled = false;
+      btnAnalizar.textContent = "📊 Analizar stock";
       return;
     }
+
+    const filas = JSON.parse(filasData);
 
     estado.textContent = "Agrupando stock por material...";
     const stockPorMaterial = agruparStockKacosa(filas);
@@ -155,23 +255,28 @@ async function procesarArchivo() {
 
     if (!resp.ok) {
       estado.textContent = "Error: " + resp.error;
+      btnAnalizar.disabled = false;
+      btnAnalizar.textContent = "📊 Analizar stock";
       return;
     }
 
     estado.textContent = `Listo — ${resp.alertas.length} alerta(s) encontrada(s).`;
     mostrarAlertas(resp.alertas);
 
+    btnAnalizar.disabled = false;
+    btnAnalizar.textContent = "📊 Analizar stock";
+
   } catch (err) {
     estado.textContent = "Error al procesar el archivo: " + err.message;
+    const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+    btnAnalizar.disabled = false;
+    btnAnalizar.textContent = "📊 Analizar stock";
   }
 }
 
 /**
  * Agrupa las filas del stock de Kacosa por código de material,
- * sumando los 2 centros (1000 y 3000, que son la misma casa matriz)
- * y todos sus almacenes. Solo cuenta como disponible:
- * Libre utilización + Trans./Trasl. + Devoluciones
- * (En control calidad y Bloqueado NO se cuentan).
+ * sumando los 2 centros (1000 y 3000)
  */
 function agruparStockKacosa(filas) {
   const mapa = {};
@@ -213,7 +318,6 @@ function mostrarAlertas(alertas) {
   const sinStock = alertas.filter(a => a.tipo === "SIN_STOCK");
   const stockBajo = alertas.filter(a => a.tipo === "STOCK_BAJO");
 
-  // Preparar datos para la tabla
   const datosTabla = alertas.map(a => ({
     codigo: a.codigo,
     descripcion: a.descripcion,
@@ -252,7 +356,6 @@ function mostrarAlertas(alertas) {
     </div>
   `;
 
-  // Renderizar tabla con paginación
   const columnas = [
     { key: 'codigo', label: 'Código' },
     { key: 'descripcion', label: 'Descripción' },
@@ -270,7 +373,6 @@ function mostrarAlertas(alertas) {
   
   renderizar(datosTabla);
 
-  // Evento de búsqueda
   document.getElementById('alertas-buscar').addEventListener('input', (e) => {
     const termino = e.target.value.toLowerCase().trim();
     if (!termino) {
@@ -286,8 +388,7 @@ function mostrarAlertas(alertas) {
 
   document.getElementById("btn-descargar-alertas").addEventListener("click", () => descargarAlertasExcel(alertas));
 
-  // Agregar modal para ver distribución
-  // Agregar botón de distribución en cada fila después de renderizar
+  // Agregar botón de distribución en cada fila
   setTimeout(() => {
     document.querySelectorAll('#alertas-tabla-container tbody tr').forEach((row, index) => {
       const alerta = alertas[index];
