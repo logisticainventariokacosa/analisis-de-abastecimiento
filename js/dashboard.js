@@ -88,10 +88,30 @@ async function cargarAnalisis() {
     return;
   }
 
+  // Convertir valores numéricos
+  const materiales = resp.materiales.map(m => ({
+    ...m,
+    codigo: String(m.codigo || ''),
+    descripcion: String(m.descripcion || ''),
+    clase: String(m.clase || ''),
+    totalVentas: typeof m.totalVentas === 'number' ? m.totalVentas : Number(m.totalVentas) || 0,
+    promedioVentasPeriodo: typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : Number(m.promedioVentasPeriodo) || 0,
+    stockTienda: typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0,
+    stockKacosa: typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0,
+    aPedir: typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0,
+    aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : Number(m.aPedirIdeal) || 0,
+    pendiente: typeof m.pendiente === 'number' ? m.pendiente : Number(m.pendiente) || 0,
+    empaque: typeof m.empaque === 'number' ? m.empaque : Number(m.empaque) || 1,
+    periodoVentas: String(m.periodoVentas || ''),
+    periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
+    rangoSeguridadUsado: String(m.rangoSeguridadUsado || ''),
+    tienda: String(m.tienda || '')
+  }));
+
   analisisCache = {
     tienda: tiendaSeleccionada,
     fechaAnalisis: resp.fechaAnalisis || "Sin fecha",
-    materiales: resp.materiales
+    materiales: materiales
   };
   
   mostrarDashboard(analisisCache);
@@ -99,38 +119,10 @@ async function cargarAnalisis() {
 
 function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
+  materialesCache = analisis.materiales;
   
-  // Convertir TODOS los valores numéricos correctamente
-  materialesCache = analisis.materiales.map(m => {
-    // Cada propiedad viene de leerAnalisis_ del GS, que ya mapea correctamente
-    // Pero por seguridad, convertimos todo a número donde corresponda
-    return {
-      ...m,
-      codigo: String(m.codigo || ''),
-      descripcion: String(m.descripcion || ''),
-      clase: String(m.clase || ''),
-      totalVentas: typeof m.totalVentas === 'number' ? m.totalVentas : Number(m.totalVentas) || 0,
-      promedioVentasPeriodo: typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : Number(m.promedioVentasPeriodo) || 0,
-      stockTienda: typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0,
-      stockKacosa: typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0,
-      aPedir: typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0,
-      aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : Number(m.aPedirIdeal) || 0,
-      pendiente: typeof m.pendiente === 'number' ? m.pendiente : Number(m.pendiente) || 0,
-      empaque: typeof m.empaque === 'number' ? m.empaque : Number(m.empaque) || 1,
-      periodoVentas: String(m.periodoVentas || ''),
-      periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
-      rangoSeguridadUsado: String(m.rangoSeguridadUsado || ''),
-      tienda: String(m.tienda || '')
-    };
-  });
-  
-  // Calcular total a pedir
   const totalAPedir = materialesCache.reduce((acc, m) => acc + (m.aPedir || 0), 0);
-  
-  // Contar quiebres (stock Kacosa <= 0 y aPedir === 0)
   const quiebres = materialesCache.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0).length;
-  
-  // Contar por clase
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
     const clase = (m.clase || '').toUpperCase();
@@ -168,7 +160,6 @@ function mostrarDashboard(analisis) {
     </div>
   `;
 
-  // Renderizar tabla
   const columnas = [
     { key: 'codigo', label: 'Código' },
     { key: 'descripcion', label: 'Descripción' },
@@ -182,10 +173,8 @@ function mostrarDashboard(analisis) {
 
   const container = document.getElementById('dash-tabla-container');
   const { renderizar } = crearTablaPaginada(container, columnas, 50);
-  
   renderizar(materialesCache);
 
-  // Evento de búsqueda
   document.getElementById('dash-buscar').addEventListener('input', (e) => {
     const termino = e.target.value.toLowerCase().trim();
     if (!termino) {
@@ -199,7 +188,6 @@ function mostrarDashboard(analisis) {
     renderizar(filtrados);
   });
 
-  // Evento de descarga
   document.getElementById('dash-descargar').addEventListener('click', () => {
     descargarExcelDashboard(materialesCache, analisis);
   });
@@ -213,6 +201,7 @@ function descargarExcelDashboard(materiales, analisis) {
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
+  // Clasificar en los 4 grupos igual que el análisis
   const pedido = materiales.filter(m => (m.aPedir || 0) > 0);
   const noPedido = materiales.filter(m => (m.aPedir || 0) === 0);
   const pendienteStock = materiales.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0);
@@ -228,23 +217,33 @@ function descargarExcelDashboard(materiales, analisis) {
 
   const wb = XLSX.utils.book_new();
 
+  // --- Hoja Resumen ---
   const wsResumen = construirHojaResumen(
     `Dashboard — ${nombrePorId(analisis.tienda)}`,
     [
       { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
       { label: "Materiales a pedir", valor: pedido.length, color: "FF2F8F6E" },
       { label: "Total unidades a pedir", valor: totalAPedir, color: "FF1B2A41" },
-      { label: "Sin stock en Kacosa", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "Sin stock en Kacosa (quiebres)", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "No ameritaron pedido", valor: noPedido.length },
+      { label: "Sugerencias adicionales", valor: sugerencias.length },
+      { label: "Sin rotación en tienda", valor: sinRotacion.length },
       { label: "Clase A", valor: porClase.A, color: "FF2F8F6E" },
       { label: "Clase B", valor: porClase.B, color: "FF4A6FA5" },
       { label: "Clase C", valor: porClase.C, color: "FFE8A03D" },
       { label: "Clase D", valor: porClase.D, color: "FF6B7280" }
     ],
-    ["Generado desde el Dashboard del sistema de Abastecimiento KACOSA."]
+    [
+      `Período de ventas analizado: ${materiales[0]?.periodoVentas || "—"}`,
+      `Horizonte de abastecimiento: ${materiales[0]?.periodoAbastecimiento || "—"}`,
+      `Rango de seguridad usado: ${materiales[0]?.rangoSeguridadUsado || "—"}`,
+      "Generado desde el Dashboard del sistema de Abastecimiento KACOSA."
+    ]
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-  const columnasBase = [
+  // --- Columnas completas (incluyendo Fecha_Analisis) ---
+  const columnasCompletas = [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
     { key: 'clase', label: 'Clase', ancho: 8 },
@@ -256,30 +255,59 @@ function descargarExcelDashboard(materiales, analisis) {
     { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
     { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
     { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
-    { key: 'tienda', label: 'Tienda', ancho: 14 }
+    { key: 'tienda', label: 'Tienda', ancho: 14 },
+    { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
   ];
 
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasBase, {
+  // --- 1. A_Pedir ---
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasCompletas, {
     colorearPorClase: true,
     columnasDestacadas: [{ key: 'aPedir', color: 'FFC4432B' }]
   }), "A_Pedir");
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasBase, { colorearPorClase: true }), "No_Amerito_Pedido");
 
-  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pendienteStock, [
-    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
-  ], { colorearPorClase: true }), "Pendiente_Stock_Kacosa");
+  // --- 2. No_Amerito_Pedido ---
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasCompletas, {
+    colorearPorClase: true
+  }), "No_Amerito_Pedido");
 
+  // --- 3. Pendiente_Stock_Kacosa ---
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
+    pendienteStock.map(m => ({ ...m, pendiente: (m.aPedirIdeal || 0) - (m.aPedir || 0) })),
+    [
+      { key: 'codigo', label: 'Codigo', ancho: 14 },
+      { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+      { key: 'clase', label: 'Clase', ancho: 8 },
+      { key: 'aPedirIdeal', label: 'A_Pedir_Ideal', ancho: 12 },
+      { key: 'aPedir', label: 'A_Pedir_Real', ancho: 12 },
+      { key: 'pendiente', label: 'Pendiente', ancho: 12 },
+      { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
+      { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
+      { key: 'tienda', label: 'Tienda', ancho: 14 },
+      { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
+      { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
+    ],
+    {
+      colorearPorClase: true,
+      columnasDestacadas: [{ key: 'pendiente', color: 'FFC4432B' }]
+    }
+  ), "Pendiente_Stock_Kacosa");
+
+  // --- 4. Sugerencias ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
-    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
-  ]), "Sugerencias");
+    { key: 'codigo', label: 'Codigo', ancho: 14 },
+    { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
+    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
+  ], { colorearPorClase: true }), "Sugerencias");
 
+  // --- 5. Sin_Rotacion ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sinRotacion, [
-    { key: 'codigo', label: 'Código', ancho: 14 }, { key: 'descripcion', label: 'Descripción', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 }, { key: 'stockTienda', label: 'Stock Tienda', ancho: 12 },
-    { key: 'stockKacosa', label: 'Stock Kacosa', ancho: 12 }
-  ]), "Sin_Rotacion");
+    { key: 'codigo', label: 'Codigo', ancho: 14 },
+    { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
+    { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
+    { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
+  ], { colorearPorClase: true }), "Sin_Rotacion");
 
   XLSX.writeFile(wb, `Dashboard_${base}.xlsx`);
   notificarExito("El archivo Excel del Dashboard se descargó correctamente.", { titulo: "Excel descargado" });
