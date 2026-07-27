@@ -88,31 +88,25 @@ async function cargarAnalisis() {
     return;
   }
 
-  // Convertir valores numéricos y calcular pendiente si no existe
+  // Convertir valores numéricos
   const materiales = resp.materiales.map(m => {
-    const aPedir = typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0;
-    const aPedirIdeal = typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : Number(m.aPedirIdeal) || 0;
-    const stockKacosa = typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0;
-    const stockTienda = typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0;
-    const totalVentas = typeof m.totalVentas === 'number' ? m.totalVentas : Number(m.totalVentas) || 0;
-    const promedio = typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : Number(m.promedioVentasPeriodo) || 0;
-    
-    // Calcular pendiente = aPedirIdeal - aPedir, si no existe
-    const pendiente = typeof m.pendiente === 'number' ? m.pendiente : Math.max(0, aPedirIdeal - aPedir);
-    
+    const aPedir = Number(m.aPedir) || 0;
+    const stockKacosa = Number(m.stockKacosa) || 0;
+    const stockTienda = Number(m.stockTienda) || 0;
+    const aPedirIdeal = Number(m.aPedirIdeal) || 0;
     return {
       ...m,
       codigo: String(m.codigo || ''),
       descripcion: String(m.descripcion || ''),
       clase: String(m.clase || ''),
-      totalVentas: totalVentas,
-      promedioVentasPeriodo: promedio,
+      totalVentas: Number(m.totalVentas) || 0,
+      promedioVentasPeriodo: Number(m.promedioVentasPeriodo) || 0,
       stockTienda: stockTienda,
       stockKacosa: stockKacosa,
       aPedir: aPedir,
       aPedirIdeal: aPedirIdeal,
-      pendiente: pendiente,
-      empaque: typeof m.empaque === 'number' ? m.empaque : Number(m.empaque) || 1,
+      pendiente: Math.max(0, aPedirIdeal - aPedir),
+      empaque: Number(m.empaque) || 1,
       periodoVentas: String(m.periodoVentas || ''),
       periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
       rangoSeguridadUsado: String(m.rangoSeguridadUsado || ''),
@@ -134,10 +128,9 @@ function mostrarDashboard(analisis) {
   materialesCache = analisis.materiales;
   
   // Calcular estadísticas
-  const totalMaterialesAPedir = materialesCache.filter(m => (m.aPedir || 0) > 0).length;
-  const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + (m.aPedir || 0), 0);
-  const quiebres = materialesCache.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0).length;
-  const pendienteTotal = materialesCache.filter(m => (m.pendiente || 0) > 0).length;
+  const totalMaterialesAPedir = materialesCache.filter(m => m.aPedir > 0).length;
+  const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + m.aPedir, 0);
+  const pendienteStock = materialesCache.filter(m => m.aPedir > 0 && m.stockKacosa < m.aPedir).length;
   
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
@@ -157,8 +150,8 @@ function mostrarDashboard(analisis) {
         <div class="valor">${totalUnidadesAPedir}</div>
       </div>
       <div class="kpi-card rojo">
-        <div class="label">Pendiente por stock</div>
-        <div class="valor">${pendienteTotal}</div>
+        <div class="label">Sin stock suficiente</div>
+        <div class="valor">${pendienteStock}</div>
       </div>
       <div class="kpi-card">
         <div class="label">Clase A / B / C / D</div>
@@ -209,7 +202,7 @@ function mostrarDashboard(analisis) {
   });
 
   document.getElementById('dash-descargar').addEventListener('click', () => {
-    descargarExcelDashboard(materialesCache, analisis);
+    descargarExcelDashboard(materialsCache, analisis);
   });
 }
 
@@ -219,32 +212,40 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     return;
   }
 
-  // Asegurar que pendiente esté calculado
+  // Asegurar valores numéricos
   const materiales = materialesOriginal.map(m => {
-    const aPedir = m.aPedir || 0;
-    const aPedirIdeal = m.aPedirIdeal || 0;
-    const pendiente = m.pendiente || Math.max(0, aPedirIdeal - aPedir);
+    const aPedir = Number(m.aPedir) || 0;
+    const stockKacosa = Number(m.stockKacosa) || 0;
+    const aPedirIdeal = Number(m.aPedirIdeal) || 0;
     return {
       ...m,
-      pendiente: pendiente,
+      aPedir: aPedir,
+      stockKacosa: stockKacosa,
+      aPedirIdeal: aPedirIdeal,
+      pendiente: Math.max(0, aPedirIdeal - aPedir),
       fechaAnalisis: analisis.fechaAnalisis || ''
     };
   });
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
-  // Clasificar igual que en el análisis
-  const pedido = materiales.filter(m => (m.aPedir || 0) > 0);
-  const noPedido = materiales.filter(m => (m.aPedir || 0) === 0);
+  // 1. A_Pedir: materiales con aPedir > 0
+  const pedido = materiales.filter(m => m.aPedir > 0);
   
-  // Pendiente_Stock_Kacosa = materiales con pendiente > 0
-  const pendienteStock = materiales.filter(m => (m.pendiente || 0) > 0);
+  // 2. No_Amerito_Pedido: materiales con aPedir === 0
+  const noPedido = materiales.filter(m => m.aPedir === 0);
   
-  const sugerencias = materiales.filter(m => (m.stockKacosa || 0) > 0 && (m.aPedir || 0) === 0);
-  const sinRotacion = materiales.filter(m => (m.stockTienda || 0) > 0 && (m.aPedir || 0) === 0);
+  // 3. Pendiente_Stock_Kacosa: aPedir > 0 Y stockKacosa < aPedir
+  const pendienteStock = materiales.filter(m => m.aPedir > 0 && m.stockKacosa < m.aPedir);
+  
+  // 4. Sugerencias: stockKacosa > 0 Y aPedir === 0
+  const sugerencias = materiales.filter(m => m.stockKacosa > 0 && m.aPedir === 0);
+  
+  // 5. Sin_Rotacion: stockTienda > 0 Y aPedir === 0
+  const sinRotacion = materiales.filter(m => (Number(m.stockTienda) || 0) > 0 && m.aPedir === 0);
 
   const totalMaterialesAPedir = pedido.length;
-  const totalUnidadesAPedir = pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
+  const totalUnidadesAPedir = pedido.reduce((acc, m) => acc + m.aPedir, 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materiales.forEach(m => { 
     const clase = (m.clase || '').toUpperCase();
@@ -259,7 +260,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
       { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
       { label: "Materiales a pedir", valor: totalMaterialesAPedir, color: "FF2F8F6E" },
       { label: "Unidades a pedir", valor: totalUnidadesAPedir, color: "FF1B2A41" },
-      { label: "Pendiente por falta de stock", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "Sin stock suficiente en Kacosa", valor: pendienteStock.length, color: "FFC4432B" },
       { label: "No ameritaron pedido", valor: noPedido.length },
       { label: "Sugerencias adicionales", valor: sugerencias.length },
       { label: "Sin rotación en tienda", valor: sinRotacion.length },
@@ -302,20 +303,22 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     colorearPorClase: true
   }), "No_Amerito_Pedido");
 
-  // Pendiente_Stock_Kacosa: solo materiales con pendiente > 0
+  // Pendiente_Stock_Kacosa: aPedir > 0 Y stockKacosa < aPedir
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
     pendienteStock.map(m => ({ 
       ...m, 
-      pendiente: m.pendiente || 0
+      pendiente: Math.max(0, m.aPedir - m.stockKacosa)
     })),
     [
       { key: 'codigo', label: 'Codigo', ancho: 14 },
       { key: 'descripcion', label: 'Descripcion', ancho: 38 },
       { key: 'clase', label: 'Clase', ancho: 8 },
-      { key: 'aPedirIdeal', label: 'A_Pedir_Ideal', ancho: 12 },
-      { key: 'aPedir', label: 'A_Pedir_Real', ancho: 12 },
-      { key: 'pendiente', label: 'Pendiente', ancho: 12 },
+      { key: 'totalVentas', label: 'Total_Ventas', ancho: 12 },
+      { key: 'promedioVentasPeriodo', label: 'Promedio_Ventas_Periodo', ancho: 16 },
+      { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
       { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
+      { key: 'aPedir', label: 'A_Pedir', ancho: 12 },
+      { key: 'pendiente', label: 'Faltante_en_Kacosa', ancho: 14 },
       { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
       { key: 'tienda', label: 'Tienda', ancho: 14 },
       { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
@@ -330,12 +333,14 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
   ]), "Sugerencias");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sinRotacion, [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
+    { key: 'clase', label: 'Clase', ancho: 8 },
     { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
   ]), "Sin_Rotacion");
