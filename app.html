@@ -34,8 +34,9 @@
     <button id="btn-user-avatar" type="button" class="user-avatar" aria-label="Cuenta de usuario">👤</button>
   </header>
 
-  <!-- SIDEBAR: menú desplegable -->
+  <!-- SIDEBAR: menú desplegable con usuario y cerrar sesión al final -->
   <aside class="sidebar" id="sidebar">
+    <!-- Navegación principal (ocupa el espacio disponible) -->
     <nav aria-label="Navegación principal">
       <button type="button" class="nav-item activo" data-vista="vista-dashboard">
         <span class="icono">📊</span> Dashboard
@@ -48,7 +49,7 @@
       </button>
     </nav>
 
-    <!-- 👇 SECCIÓN DE USUARIO AL FINAL DEL SIDEBAR (se mantiene abajo) -->
+    <!-- 👇 SECCIÓN DE USUARIO AL FINAL DEL SIDEBAR (sin espacio extra) -->
     <div class="sidebar-footer">
       <div class="sidebar-user">
         <div class="sidebar-user-avatar">👤</div>
