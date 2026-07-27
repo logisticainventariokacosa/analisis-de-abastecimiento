@@ -1,6 +1,7 @@
 // js/ventas-parser.js
 import { aNumero } from "./mht-parser.js";
 import { obtenerFactor } from "./factores-conversion.js";
+import { esCodigoExcluido } from "./exclusiones.js";
 
 // Clases de movimiento relevantes según SAP
 const CLASES_VENTA = ["909", "601"];        // salidas por venta (negativas)
@@ -29,6 +30,7 @@ export function procesarVentas(filas) {
 
     const codigo = String(f["Material"] || "").trim();
     if (!codigo) return;
+    if (esCodigoExcluido(codigo)) return; // código en lista de exclusión: se ignora por completo
 
     const cantidad = aNumero(f["Ctd.en UM entrada"]);
     const unidad = String(f["Un.medida de entrada"] || "UN").trim();
