@@ -27,7 +27,6 @@ function render() {
   const cont = document.getElementById("alertas-kacosa-contenido");
   if (!cont) return;
 
-  // Limpiar el contenido para reconstruirlo siempre
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
@@ -46,7 +45,7 @@ function render() {
           <span class="file-status empty" id="file-status-kacosa">Pendiente</span>
           <input type="file" id="input-stock-kacosa" accept=".mht,.MHT">
         </div>
-        <div id="validacion-stock-kacosa" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
+        <div id="validacion-stock-kacosa-alertas" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <div style="margin-top:16px">
@@ -66,11 +65,9 @@ function render() {
     <div id="resultado-alertas"></div>
   `;
 
-  // Resetear estado
   archivoValido = false;
   filasCache = null;
 
-  // Event listeners para botones de período
   document.querySelectorAll('.btn-periodo').forEach(btn => {
     btn.addEventListener('click', function() {
       document.querySelectorAll('.btn-periodo').forEach(b => {
@@ -87,15 +84,12 @@ function render() {
     });
   });
 
-  // Configurar el input de archivo
   setupFileInput();
 
-  // Cargar paquetes
   cargarPaquetes().then(pkg => {
     mapaEmpaques = pkg || {};
   });
 
-  // Evento del botón analizar
   const btnAnalizar = document.getElementById("btn-analizar-kacosa");
   if (btnAnalizar) {
     btnAnalizar.addEventListener("click", procesarArchivo);
@@ -107,18 +101,14 @@ function setupFileInput() {
   const nameEl = document.getElementById("file-name-kacosa");
   const statusEl = document.getElementById("file-status-kacosa");
   const wrapper = document.getElementById("file-wrapper-kacosa");
-  const validEl = document.getElementById("validacion-stock-kacosa");
+  const validEl = document.getElementById("validacion-stock-kacosa-alertas");
   const btnAnalizar = document.getElementById("btn-analizar-kacosa");
 
   if (!input) return;
 
-  // Remover listeners anteriores (si los hay)
   input.removeEventListener('change', handleFileChange);
-  
-  // Agregar el listener
   input.addEventListener('change', handleFileChange);
 
-  // Configurar drag and drop
   if (wrapper) {
     wrapper.addEventListener('dragover', (e) => {
       e.preventDefault();
@@ -132,7 +122,6 @@ function setupFileInput() {
       wrapper.classList.remove('dragover');
       if (e.dataTransfer.files.length) {
         input.files = e.dataTransfer.files;
-        // Disparar el evento change manualmente
         input.dispatchEvent(new Event('change', { bubbles: true }));
       }
     });
@@ -140,12 +129,6 @@ function setupFileInput() {
 
   async function handleFileChange(e) {
     const input = e.target;
-    const nameEl = document.getElementById("file-name-kacosa");
-    const statusEl = document.getElementById("file-status-kacosa");
-    const wrapper = document.getElementById("file-wrapper-kacosa");
-    const validEl = document.getElementById("validacion-stock-kacosa");
-    const btnAnalizar = document.getElementById("btn-analizar-kacosa");
-
     archivoValido = false;
     filasCache = null;
     if (btnAnalizar) btnAnalizar.disabled = true;
@@ -202,15 +185,11 @@ function setupFileInput() {
   }
 }
 
-/**
- * Valida que el archivo de stock tenga las columnas correctas y solo centros 1000/3000
- */
 function validarArchivoStock(filas) {
   if (filas.length === 0) {
     return { valido: false, mensaje: '⚠️ El archivo está vacío o no tiene datos' };
   }
 
-  // Validar columnas
   const columnasExistentes = Object.keys(filas[0]);
   const faltantes = COLUMNAS_STOCK.filter(col => !columnasExistentes.includes(col));
 
@@ -221,7 +200,6 @@ function validarArchivoStock(filas) {
     };
   }
 
-  // Validar centros (solo 1000 y 3000)
   const centros = new Set();
   filas.forEach(f => {
     const centro = String(f["Centro"] || "").trim();
@@ -305,10 +283,6 @@ async function procesarArchivo() {
   }
 }
 
-/**
- * Agrupa las filas del stock de Kacosa por código de material,
- * sumando los 2 centros (1000 y 3000)
- */
 function agruparStockKacosa(filas) {
   const mapa = {};
 
@@ -349,7 +323,7 @@ function mostrarAlertas(alertas) {
   const sinStock = alertas.filter(a => a.tipo === "SIN_STOCK");
   const stockBajo = alertas.filter(a => a.tipo === "STOCK_BAJO");
 
-  // Asegurar que periodoDeAbastecimiento tenga valor
+  // Asegurar que periodoDeAbastecimiento tenga el valor seleccionado
   const datosTabla = alertas.map(a => ({
     codigo: a.codigo,
     descripcion: a.descripcion,
@@ -406,7 +380,7 @@ function mostrarAlertas(alertas) {
     if (container) {
       const { renderizar } = crearTablaPaginada(container, columnas, 50);
       
-      // Guardar referencia a renderizar para usarla en el filtro
+      // Guardar referencia para el filtro
       let renderizarTabla = renderizar;
       
       // Renderizar inicial
@@ -439,7 +413,6 @@ function mostrarAlertas(alertas) {
       descargar.addEventListener('click', () => descargarAlertasExcel(alertas));
     }
 
-    // Agregar botón de distribución en cada fila
     setTimeout(() => {
       document.querySelectorAll('#alertas-tabla-container tbody tr').forEach((row, index) => {
         const alerta = alertas[index];
@@ -573,14 +546,12 @@ function descargarAlertasExcel(alertas) {
   notificarExito(`Se descargó el Excel con ${filas.length} alerta(s) y proyección de compra por tienda.`, { titulo: "Excel descargado" });
 }
 
-// Ejecutar render cuando se cambie a esta vista
 document.addEventListener("kacosa:vista-cambiada", (e) => {
   if (e.detail.vista === "vista-alertas-kacosa") {
     render();
   }
 });
 
-// Ejecutar render inmediatamente si la vista actual es alertas-kacosa
 if (document.querySelector("#vista-alertas-kacosa.activa")) {
   render();
 }
