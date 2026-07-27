@@ -357,6 +357,7 @@ function mostrarAlertas(alertas) {
     totalAPedir: a.totalAPedir,
     proyeccionCompra: a.proyeccionCompra,
     empaque: a.empaque,
+    periodoDeAbastecimiento: a.periodoDeAbastecimiento,
     tipo: a.tipo,
     distribucion: a.distribucionPorTienda || {}
   }));
