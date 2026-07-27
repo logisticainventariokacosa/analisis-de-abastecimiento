@@ -50,10 +50,17 @@ function alternarPanel(mostrar) {
 function actualizarContextoInfo() {
   const info = document.getElementById("chat-contexto-info");
   const analisis = window.KACOSA?.ultimoAnalisis;
+  const alertasKacosa = window.KACOSA?.ultimasAlertasKacosa || [];
+  const dashboardAnalisis = window.KACOSA?.ultimoDashboardAnalisis;
   const misTiendas = window.KACOSA?.tiendas || [];
 
-  if (analisis) {
-    info.textContent = `${nombrePorId(analisis.tienda)} · ${analisis.fechaAnalisis}`;
+  const fuentes = [];
+  if (analisis) fuentes.push(`Nuevo Análisis (${nombrePorId(analisis.tienda)} · ${analisis.fechaAnalisis})`);
+  if (alertasKacosa.length > 0) fuentes.push(`Alertas Kacosa (${alertasKacosa.length})`);
+  if (dashboardAnalisis) fuentes.push(`Dashboard (${nombrePorId(dashboardAnalisis.tienda)})`);
+
+  if (fuentes.length > 0) {
+    info.textContent = fuentes.join(" · ");
   } else if (misTiendas.includes("TODAS")) {
     info.textContent = "Acceso a todas las tiendas";
   } else if (misTiendas.length > 0) {
@@ -90,23 +97,51 @@ async function enviarPregunta(e) {
   cont.scrollTop = cont.scrollHeight;
 
   const analisis = window.KACOSA?.ultimoAnalisis;
+  const alertasKacosa = window.KACOSA?.ultimasAlertasKacosa || [];
+  const dashboardAnalisis = window.KACOSA?.ultimoDashboardAnalisis;
   const misTiendas = window.KACOSA?.tiendas || [];
   const tiendasUsuario = misTiendas.includes("TODAS")
     ? "TODAS (acceso administrativo a las 12 tiendas)"
     : misTiendas.map(id => nombrePorId(id)).join(", ");
 
-  const contexto = analisis ? {
-    tienda: nombrePorId(analisis.tienda),
-    tiendasUsuario,
-    fechaAnalisis: analisis.fechaAnalisis,
-    periodo: analisis.periodo,
-    margenPct: analisis.margenPct,
-    resumen: {
+  const contexto = { tiendasUsuario };
+
+  // Contexto de "Nuevo Análisis" (si hay uno recién generado en esta sesión)
+  if (analisis) {
+    contexto.tienda = nombrePorId(analisis.tienda);
+    contexto.fechaAnalisis = analisis.fechaAnalisis;
+    contexto.periodo = analisis.periodo;
+    contexto.margenPct = analisis.margenPct;
+    contexto.resumen = {
       totalAPedir: analisis.materiales.reduce((acc, m) => acc + m.aPedir, 0),
       quiebresKacosa: analisis.materiales.filter(m => m.stockKacosa <= 0 && m.aPedir === 0).length
-    },
-    materiales: analisis.materiales
-  } : { tiendasUsuario };
+    };
+    contexto.materiales = analisis.materiales;
+  }
+
+  // Contexto de "Alertas Kacosa" (si se ha corrido un análisis de stock Kacosa)
+  if (alertasKacosa.length > 0) {
+    contexto.alertasKacosa = alertasKacosa.slice(0, 250).map(a => ({
+      codigo: a.codigo,
+      descripcion: a.descripcion,
+      clase: a.clase,
+      stockKacosa: a.stockKacosa,
+      totalAPedir: a.totalAPedir,
+      proyeccionCompra: a.proyeccionCompra,
+      tipo: a.tipo,
+      periodoDeAbastecimiento: a.periodoDeAbastecimiento
+    }));
+    contexto.totalAlertasKacosa = alertasKacosa.length;
+  }
+
+  // Contexto del "Dashboard" (último análisis guardado en Sheets para la tienda vista)
+  if (dashboardAnalisis) {
+    contexto.dashboard = {
+      tienda: nombrePorId(dashboardAnalisis.tienda),
+      fechaAnalisis: dashboardAnalisis.fechaAnalisis,
+      materiales: dashboardAnalisis.materiales
+    };
+  }
 
   const resp = await callBridge("chatConsulta", {
     pregunta,
