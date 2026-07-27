@@ -7,13 +7,11 @@ html, body {
   max-width: 100%;
   overflow-x: hidden;
   min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 .oculto { display: none !important; }
 
-/* Overlay del menú lateral en móvil (nav.js añade la clase .visible) */
+/* Overlay del menú lateral en móvil */
 .overlay-sidebar {
   display: none;
   position: fixed;
@@ -37,34 +35,36 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
+  background: var(--fondo);
 }
 
-/* --- Header único: ocupa TODO el ancho, sticky, sin margen --- */
+/* --- HEADER: sticky, full-width, siempre visible --- */
 .app-header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 12px 20px;
+  padding: 12px 24px;
   background: linear-gradient(135deg, var(--azul-base), var(--azul-claro));
   position: sticky;
   top: 0;
   z-index: 50;
   flex-shrink: 0;
   box-shadow: 0 2px 12px rgba(15, 26, 46, 0.15);
-  width: 100%;           /* ocupa todo el ancho */
-  margin: 0;             /* sin margen */
-  border-radius: 0;      /* sin bordes redondeados */
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
   left: 0;
   right: 0;
+  min-height: 64px;
 }
 
 #btn-hamburguesa {
   background: rgba(255,255,255,0.08);
   border: none;
-  font-size: 20px;
+  font-size: 22px;
   cursor: pointer;
   color: #FFFFFF;
-  padding: 8px 10px;
+  padding: 8px 12px;
   border-radius: var(--radio-peq);
   transition: var(--transicion);
   line-height: 1;
@@ -74,27 +74,39 @@ body {
 
 .brand-icon { display: flex; align-items: center; gap: 10px; }
 .brand-icon .barra {
-  width: 4px; height: 24px;
+  width: 4px;
+  height: 28px;
   background: linear-gradient(180deg, var(--ambar), var(--ambar-oscuro));
   border-radius: 3px;
 }
-.brand-icon h2 { font-size: 16px; margin: 0; color: #fff; font-weight: 600; letter-spacing: -0.01em; }
+.brand-icon h2 {
+  font-size: 18px;
+  margin: 0;
+  color: #fff;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
 .brand-icon h2 span { color: var(--ambar); }
 
 .user-avatar {
   margin-left: auto;
-  width: 36px; height: 36px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   background: rgba(255,255,255,0.12);
   border: none;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px; color: #fff; cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  cursor: pointer;
   flex-shrink: 0;
   transition: var(--transicion);
 }
 .user-avatar:hover { background: rgba(255,255,255,0.22); }
 
-/* --- Sidebar: menú desplegable (drawer) --- */
+/* --- Sidebar --- */
 .sidebar {
   position: fixed;
   top: 0;
@@ -171,7 +183,7 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* --- Modal de cuenta de usuario --- */
+/* --- Modal de usuario --- */
 .overlay-modal {
   display: none;
   position: fixed;
@@ -235,7 +247,7 @@ body {
 }
 .btn-salir:hover { background: #A8331F; }
 
-/* --- Contenido principal: flex para que el footer quede al final --- */
+/* --- Contenido principal --- */
 .contenido {
   flex: 1;
   display: flex;
@@ -392,7 +404,7 @@ body {
   margin-top: 4px;
 }
 
-/* --- Inputs modernos --- */
+/* --- Inputs --- */
 .input-modern {
   width: 100%;
   padding: 12px 16px;
@@ -429,8 +441,7 @@ textarea.input-modern {
   padding-right: 40px;
 }
 
-.input-modern[type="range"],
-input[type="range"].input-modern {
+.input-modern[type="range"] {
   width: 100%;
   padding: 0;
   border: none;
@@ -443,8 +454,7 @@ input[type="range"].input-modern {
   cursor: pointer;
 }
 
-.input-modern[type="range"]::-webkit-slider-thumb,
-input[type="range"].input-modern::-webkit-slider-thumb {
+.input-modern[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 18px;
   height: 18px;
@@ -455,13 +465,11 @@ input[type="range"].input-modern::-webkit-slider-thumb {
   box-shadow: 0 2px 8px rgba(232, 160, 61, 0.3);
 }
 
-.input-modern[type="range"]::-webkit-slider-thumb:hover,
-input[type="range"].input-modern::-webkit-slider-thumb:hover {
+.input-modern[type="range"]::-webkit-slider-thumb:hover {
   transform: scale(1.1);
 }
 
-.input-modern[type="range"]::-moz-range-thumb,
-input[type="range"].input-modern::-moz-range-thumb {
+.input-modern[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -470,7 +478,7 @@ input[type="range"].input-modern::-moz-range-thumb {
   border: 2px solid var(--blanco);
 }
 
-/* --- File Inputs Modernos --- */
+/* --- File Inputs --- */
 .file-input-wrapper {
   position: relative;
   display: flex;
@@ -595,7 +603,7 @@ input[type="range"].input-modern::-moz-range-thumb {
   box-shadow: 0 0 0 4px rgba(42, 64, 96, 0.08);
 }
 
-/* --- Badges de clase --- */
+/* --- Badges --- */
 .clase-badge {
   display: inline-flex;
   align-items: center;
@@ -663,7 +671,7 @@ tbody tr:hover {
   background: var(--fondo);
 }
 
-/* Estilos para paginación */
+/* --- Paginación --- */
 .btn-pagina {
   transition: var(--transicion);
 }
@@ -747,7 +755,7 @@ tbody tr:hover {
   border-color: var(--borde-focus);
 }
 
-/* --- Estado / feedback --- */
+/* --- Estado --- */
 .estado-texto {
   color: var(--texto-secundario);
   font-size: 13px;
@@ -756,9 +764,7 @@ tbody tr:hover {
 
 /* --- RESPONSIVE --- */
 @media (max-width: 860px) {
-  .vistas-wrap { 
-    padding: 16px; 
-  }
+  .vistas-wrap { padding: 16px; }
   
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
@@ -808,6 +814,15 @@ tbody tr:hover {
   .kpi-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
+  }
+  
+  .app-header {
+    padding: 10px 16px;
+    min-height: 56px;
+  }
+  
+  .brand-icon h2 {
+    font-size: 15px;
   }
 }
 
@@ -987,24 +1002,26 @@ tbody tr:hover {
   transform: scale(1.05);
 }
 
-/* --- Pie de página: ocupa todo el ancho, sin margen --- */
+/* --- FOOTER: estilo limpio y profesional como el Dashboard --- */
 .app-footer {
   flex-shrink: 0;
   background: linear-gradient(135deg, #0F1A2E, #1E2F47);
-  padding: 10px 20px;
+  padding: 14px 24px;
   text-align: center;
-  color: rgba(255,255,255,0.65);
-  font-size: 11.5px;
+  color: rgba(255,255,255,0.6);
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
-  row-gap: 2px;
-  width: 100%;          /* ocupa todo el ancho */
-  margin: 0;            /* sin margen */
-  border-radius: 0;     /* sin bordes redondeados */
+  row-gap: 4px;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
   box-sizing: border-box;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  letter-spacing: 0.3px;
 }
 
 .app-footer-marca {
@@ -1012,21 +1029,39 @@ tbody tr:hover {
   font-weight: 700;
   color: #fff;
   letter-spacing: -0.01em;
+  font-size: 13px;
 }
 
-.app-footer strong { color: rgba(255,255,255,0.9); }
-.app-footer-punto { color: rgba(255,255,255,0.25); }
+.app-footer strong { 
+  color: rgba(255,255,255,0.85); 
+  font-weight: 600;
+}
+
+.app-footer-punto { 
+  color: rgba(255,255,255,0.15); 
+  font-size: 14px;
+}
 
 .app-footer-reloj {
-  font-weight: 600;
-  color: rgba(255,255,255,0.8);
+  font-weight: 500;
+  color: rgba(255,255,255,0.7);
+  font-variant-numeric: tabular-nums;
 }
 
-.app-footer-segundos { color: var(--ambar); }
+.app-footer-segundos { 
+  color: var(--ambar);
+  font-weight: 600;
+}
 
+/* Ocultar separadores extra en móvil */
 @media (max-width: 600px) {
-  .app-footer { padding: 8px 12px; font-size: 11px; }
+  .app-footer {
+    padding: 12px 16px;
+    font-size: 11px;
+    gap: 6px;
+  }
   .app-footer-punto:nth-of-type(3) { display: none; }
+  .app-footer-marca { font-size: 12px; }
 }
 
 /* --- Notificación de éxito --- */
