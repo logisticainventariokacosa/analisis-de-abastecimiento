@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="css/app.css" />
   <link rel="stylesheet" href="css/loader.css" />
 
-  <!-- favicon / manifest (se integran correctamente) -->
+  <!-- favicon / manifest -->
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16x16.png" />
@@ -24,7 +24,7 @@
 
   <div class="overlay-sidebar" id="overlay-sidebar"></div>
 
-  <!-- HEADER ÚNICO (igual en PC y móvil) – ocupa todo el ancho, sticky -->
+  <!-- HEADER -->
   <header class="app-header" id="app-header">
     <button id="btn-hamburguesa" type="button" aria-label="Abrir menú">☰</button>
     <div class="brand-icon">
@@ -34,7 +34,7 @@
     <button id="btn-user-avatar" type="button" class="user-avatar" aria-label="Cuenta de usuario">👤</button>
   </header>
 
-  <!-- NAV: menú desplegable (drawer) -->
+  <!-- SIDEBAR: menú desplegable -->
   <aside class="sidebar" id="sidebar">
     <nav aria-label="Navegación principal">
       <button type="button" class="nav-item activo" data-vista="vista-dashboard">
@@ -46,21 +46,21 @@
       <button type="button" class="nav-item" data-vista="vista-alertas-kacosa">
         <span class="icono">⚠️</span> Alertas Kacosa
       </button>
-
-      <!-- 👇 NUEVA SECCIÓN: Usuario en el sidebar -->
-      <div style="border-top:1px solid rgba(255,255,255,0.08); margin:16px 10px 10px 10px; padding-top:16px">
-        <div style="display:flex; align-items:center; gap:12px; padding:0 10px 8px 10px">
-          <div style="width:36px; height:36px; border-radius:50%; background:rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; font-size:18px; color:#fff; flex-shrink:0">👤</div>
-          <div style="flex:1; min-width:0">
-            <div id="sidebar-user-nombre" style="color:#fff; font-weight:600; font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Usuario</div>
-            <div id="sidebar-user-email" style="color:rgba(255,255,255,0.5); font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">correo@ejemplo.com</div>
-          </div>
-        </div>
-        <button id="btn-sidebar-cerrar-sesion" style="width:calc(100% - 20px); margin:4px 10px; padding:10px; background:rgba(217,74,61,0.15); border:1px solid rgba(217,74,61,0.3); border-radius:8px; color:#D94A3D; font-weight:600; font-size:13px; cursor:pointer; transition:all 0.2s ease; font-family:'Inter',sans-serif">
-          🚪 Cerrar sesión
-        </button>
-      </div>
     </nav>
+
+    <!-- 👇 SECCIÓN DE USUARIO AL FINAL DEL SIDEBAR (se mantiene abajo) -->
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="sidebar-user-avatar">👤</div>
+        <div class="sidebar-user-info">
+          <div id="sidebar-user-nombre" class="sidebar-user-nombre">Usuario</div>
+          <div id="sidebar-user-email" class="sidebar-user-email">correo@ejemplo.com</div>
+        </div>
+      </div>
+      <button id="btn-sidebar-cerrar-sesion" class="sidebar-btn-cerrar">
+        🚪 Cerrar sesión
+      </button>
+    </div>
   </aside>
 
   <!-- MODAL DE USUARIO -->
@@ -76,9 +76,8 @@
     </div>
   </div>
 
-  <!-- CONTENIDO PRINCIPAL: el footer queda al final, siempre visible -->
+  <!-- CONTENIDO PRINCIPAL -->
   <div class="contenido" id="contenido-principal">
-
     <div class="vistas-wrap">
       <!-- VISTA: DASHBOARD -->
       <section class="vista activa" id="vista-dashboard">
@@ -108,7 +107,7 @@
       </section>
     </div>
 
-    <!-- FOOTER: ocupa todo el ancho, sin márgenes, siempre al final -->
+    <!-- FOOTER -->
     <footer class="app-footer" id="app-footer">
       <span class="app-footer-marca">KACOSA · Abastecimiento</span>
       <span class="app-footer-punto">·</span>
@@ -118,10 +117,9 @@
       <span class="app-footer-punto">·</span>
       <span class="app-footer-reloj"><span id="footer-fecha">--/--/----</span> <span id="footer-hora">--:--</span><span id="footer-segundos" class="app-footer-segundos">:--</span></span>
     </footer>
+  </div>
 
-  </div> <!-- /contenido -->
-
-  <!-- Módulos JS (todos se cargan como módulos) -->
+  <!-- Módulos JS -->
   <script type="module" src="js/nav.js"></script>
   <script type="module" src="js/dashboard.js"></script>
   <script type="module" src="js/alertas-kacosa.js"></script>
