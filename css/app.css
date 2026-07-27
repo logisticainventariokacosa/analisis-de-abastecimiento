@@ -1153,12 +1153,13 @@ tbody tr:hover {
   cursor: pointer;
 }
 .kn-boton:hover { background: var(--azul-base-alto); }
-
 /* --- Sección de usuario al final del sidebar (sin espacio debajo) --- */
 .sidebar {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  /* Asegurar que no haya padding extra en el sidebar */
+  padding-bottom: 0;
 }
 
 .sidebar nav {
@@ -1170,9 +1171,12 @@ tbody tr:hover {
 .sidebar-footer {
   flex-shrink: 0;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 12px 10px 0 10px;
+  /* 👇 ELIMINAR padding superior e inferior para que quede pegado */
+  padding: 10px 10px 0 10px;
   margin-top: auto;
   background: rgba(0, 0, 0, 0.15);
+  /* 👇 Asegurar que no tenga espacio extra debajo */
+  margin-bottom: 0;
 }
 
 .sidebar-user {
@@ -1219,7 +1223,8 @@ tbody tr:hover {
 
 .sidebar-btn-cerrar {
   width: calc(100% - 20px);
-  margin: 0 10px 12px 10px;
+  /* 👇 REDUCIR margen inferior para eliminar espacio extra */
+  margin: 0 10px 8px 10px;
   padding: 10px;
   background: rgba(217, 74, 61, 0.15);
   border: 1px solid rgba(217, 74, 61, 0.3);
