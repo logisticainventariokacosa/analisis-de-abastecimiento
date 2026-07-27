@@ -37,15 +37,33 @@ onAuthStateChanged(auth, async (user) => {
   window.KACOSA.tiendas = tiendas;
   window.KACOSA.tiendaActiva = tiendas.includes("TODAS") ? null : tiendas[0] || null;
 
+  // Actualizar información del usuario en el sidebar
+  actualizarUsuarioSidebar();
+
   // "Alertas Kacosa" es solo para perfiles con acceso a TODAS las tiendas
   const btnAlertas = document.querySelector('[data-vista="vista-alertas-kacosa"]');
   if (btnAlertas && !tiendas.includes("TODAS")) {
     btnAlertas.style.display = "none";
   }
 
+  // Actualizar modal de usuario
+  const nombreEl = document.getElementById("user-modal-nombre");
+  const correoEl = document.getElementById("user-modal-correo");
+  if (nombreEl) nombreEl.textContent = nombre;
+  if (correoEl) correoEl.textContent = user.email;
+
   document.dispatchEvent(new CustomEvent("kacosa:usuario-listo"));
   ocultarLoader();
 });
+
+function actualizarUsuarioSidebar() {
+  const u = window.KACOSA?.usuario;
+  const nombreEl = document.getElementById("sidebar-user-nombre");
+  const emailEl = document.getElementById("sidebar-user-email");
+  
+  if (nombreEl) nombreEl.textContent = u?.nombre || u?.displayName || u?.email || "Usuario";
+  if (emailEl) emailEl.textContent = u?.email || "";
+}
 
 // --- Menú hamburguesa: abre y cierra con el mismo botón, o tocando fuera ---
 const btnHamburguesa = document.getElementById("btn-hamburguesa");
@@ -91,9 +109,12 @@ if (btnUserAvatar) btnUserAvatar.addEventListener("click", abrirModalUsuario);
 if (btnUserCancelar) btnUserCancelar.addEventListener("click", cerrarModalUsuario);
 if (overlayUserModal) {
   overlayUserModal.addEventListener("click", (e) => {
-    if (e.target === overlayUserModal) cerrarModalUsuario(); // clic afuera del recuadro
+    if (e.target === overlayUserModal) cerrarModalUsuario();
   });
 }
+
+// --- Cerrar sesión desde el sidebar y desde el modal ---
+document.getElementById("btn-sidebar-cerrar-sesion")?.addEventListener("click", cerrarSesion);
 if (btnUserCerrarSesion) btnUserCerrarSesion.addEventListener("click", cerrarSesion);
 
 // --- Cambio de vista ---
