@@ -297,17 +297,15 @@ function descargarExcelDashboard(materiales, analisis) {
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sugerencias, [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 },
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
-  ], { colorearPorClase: true }), "Sugerencias");
+  ]), "Sugerencias");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(sinRotacion, [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
-    { key: 'clase', label: 'Clase', ancho: 8 },
     { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 }
-  ], { colorearPorClase: true }), "Sin_Rotacion");
+  ]), "Sin_Rotacion");
 
   XLSX.writeFile(wb, `Dashboard_${base}.xlsx`);
   notificarExito("El archivo Excel del Dashboard se descargó correctamente.", { titulo: "Excel descargado" });
