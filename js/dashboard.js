@@ -206,8 +206,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     return;
   }
 
-  // Cada fila necesita su propia Fecha_Analisis para las columnas del Excel;
-  // antes solo existía a nivel del análisis completo (analisis.fechaAnalisis).
+  // Cada fila necesita su propia Fecha_Analisis
   const materiales = materialesOriginal.map(m => ({
     ...m,
     fechaAnalisis: analisis.fechaAnalisis || ''
@@ -215,9 +214,13 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
+  // Clasificar igual que en el análisis
   const pedido = materiales.filter(m => (m.aPedir || 0) > 0);
   const noPedido = materiales.filter(m => (m.aPedir || 0) === 0);
-  const pendienteStock = materiales.filter(m => (m.stockKacosa || 0) <= 0 && (m.aPedir || 0) === 0);
+  
+  // Pendiente_Stock_Kacosa = materiales con pendiente > 0
+  const pendienteStock = materiales.filter(m => (m.pendiente || 0) > 0);
+  
   const sugerencias = materiales.filter(m => (m.stockKacosa || 0) > 0 && (m.aPedir || 0) === 0);
   const sinRotacion = materiales.filter(m => (m.stockTienda || 0) > 0 && (m.aPedir || 0) === 0);
 
@@ -237,7 +240,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
       { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
       { label: "Materiales a pedir", valor: totalMaterialesAPedir, color: "FF2F8F6E" },
       { label: "Unidades a pedir", valor: totalUnidadesAPedir, color: "FF1B2A41" },
-      { label: "Sin stock en Kacosa", valor: pendienteStock.length, color: "FFC4432B" },
+      { label: "Pendiente por falta de stock", valor: pendienteStock.length, color: "FFC4432B" },
       { label: "No ameritaron pedido", valor: noPedido.length },
       { label: "Sugerencias adicionales", valor: sugerencias.length },
       { label: "Sin rotación en tienda", valor: sinRotacion.length },
@@ -281,7 +284,10 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   }), "No_Amerito_Pedido");
 
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(
-    pendienteStock.map(m => ({ ...m, pendiente: (m.aPedirIdeal || 0) - (m.aPedir || 0) })),
+    pendienteStock.map(m => ({ 
+      ...m, 
+      pendiente: (m.aPedirIdeal || 0) - (m.aPedir || 0) 
+    })),
     [
       { key: 'codigo', label: 'Codigo', ancho: 14 },
       { key: 'descripcion', label: 'Descripcion', ancho: 38 },
