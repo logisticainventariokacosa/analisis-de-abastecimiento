@@ -200,11 +200,18 @@ function mostrarDashboard(analisis) {
   });
 }
 
-function descargarExcelDashboard(materiales, analisis) {
-  if (!materiales || materiales.length === 0) {
+function descargarExcelDashboard(materialesOriginal, analisis) {
+  if (!materialesOriginal || materialesOriginal.length === 0) {
     alert("No hay materiales para descargar.");
     return;
   }
+
+  // Cada fila necesita su propia Fecha_Analisis para las columnas del Excel;
+  // antes solo existía a nivel del análisis completo (analisis.fechaAnalisis).
+  const materiales = materialesOriginal.map(m => ({
+    ...m,
+    fechaAnalisis: analisis.fechaAnalisis || ''
+  }));
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
