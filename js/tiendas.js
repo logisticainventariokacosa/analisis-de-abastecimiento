@@ -15,11 +15,22 @@ export const TIENDAS = [
   { id: "GIGANTE_2",           nombre: "Gigante 2",           centro: "1600" },
   { id: "COMERCIAL_SALVADOR",  nombre: "Comercial Salvador",  centro: "2010" },
   { id: "PRODUCTOS_KHALED",    nombre: "Productos Khaled",    centro: "2090" },
-  { id: "FERRETOOLS",          nombre: "Ferretools",          centro: "1020" }
+  { id: "FERRETOOLS",          nombre: "Ferretools",          centro: "1020" },
+  // Kacosa también vende al mayor a sus propios clientes, por eso participa
+  // en el análisis igual que una tienda más. Sus centros son 1000 y 3000
+  // (los mismos de la casa matriz, tratados como una sola unidad).
+  { id: "KACOSA",              nombre: "Kacosa",              centro: "1000", centros: ["1000", "3000"] }
 ];
 
 // Centros que pertenecen a Kacosa (casa matriz) — se tratan como una sola unidad
 export const CENTROS_KACOSA = ["1000", "3000"];
+
+/** Devuelve el array de centros válidos para una tienda (la mayoría tiene 1, Kacosa tiene 2). */
+export function centrosDeTienda(idTienda) {
+  const t = TIENDAS.find(t => t.id === idTienda);
+  if (!t) return [];
+  return t.centros || [t.centro];
+}
 
 export function nombrePorId(id) {
   const t = TIENDAS.find(t => t.id === id);
