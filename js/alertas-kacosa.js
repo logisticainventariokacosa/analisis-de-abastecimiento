@@ -46,7 +46,7 @@ function render() {
           <span class="file-status empty" id="file-status-kacosa">Pendiente</span>
           <input type="file" id="input-stock-kacosa" accept=".mht,.MHT">
         </div>
-        <div id="validacion-stock-kacosa" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
+        <div id="validacion-stock-kacosa-alertas" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <div style="margin-top:16px">
@@ -107,7 +107,7 @@ function setupFileInput() {
   const nameEl = document.getElementById("file-name-kacosa");
   const statusEl = document.getElementById("file-status-kacosa");
   const wrapper = document.getElementById("file-wrapper-kacosa");
-  const validEl = document.getElementById("validacion-stock-kacosa");
+  const validEl = document.getElementById("validacion-stock-kacosa-alertas");
   const btnAnalizar = document.getElementById("btn-analizar-kacosa");
 
   if (!input) return;
@@ -143,7 +143,7 @@ function setupFileInput() {
     const nameEl = document.getElementById("file-name-kacosa");
     const statusEl = document.getElementById("file-status-kacosa");
     const wrapper = document.getElementById("file-wrapper-kacosa");
-    const validEl = document.getElementById("validacion-stock-kacosa");
+    const validEl = document.getElementById("validacion-stock-kacosa-alertas");
     const btnAnalizar = document.getElementById("btn-analizar-kacosa");
 
     archivoValido = false;
