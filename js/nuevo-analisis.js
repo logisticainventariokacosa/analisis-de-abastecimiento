@@ -849,6 +849,7 @@ async function enviarCorreo() {
 
   estadoAcciones.textContent = "Enviando correo...";
   const resp = await callBridge("sendReport", {
+    tipoReporte: "analisis",
     tienda: estado.tiendaSeleccionada,
     fechaAnalisis: estado.fechaAnalisis,
     resumen: {
@@ -856,6 +857,7 @@ async function enviarCorreo() {
       valorEstimado: totalAPedir,
       quiebresKacosa: estado.grupos.pendienteStock.length
     },
+    usuarioEmail: window.KACOSA?.usuario?.email || "",
     archivos
   });
 
