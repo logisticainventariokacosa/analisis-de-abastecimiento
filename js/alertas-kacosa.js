@@ -46,7 +46,7 @@ function render() {
           <span class="file-status empty" id="file-status-kacosa">Pendiente</span>
           <input type="file" id="input-stock-kacosa" accept=".mht,.MHT">
         </div>
-        <div id="validacion-stock-kacosa-alertas" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
+        <div id="validacion-stock-kacosa" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
       <div style="margin-top:16px">
@@ -107,7 +107,7 @@ function setupFileInput() {
   const nameEl = document.getElementById("file-name-kacosa");
   const statusEl = document.getElementById("file-status-kacosa");
   const wrapper = document.getElementById("file-wrapper-kacosa");
-  const validEl = document.getElementById("validacion-stock-kacosa-alertas");
+  const validEl = document.getElementById("validacion-stock-kacosa");
   const btnAnalizar = document.getElementById("btn-analizar-kacosa");
 
   if (!input) return;
@@ -143,7 +143,7 @@ function setupFileInput() {
     const nameEl = document.getElementById("file-name-kacosa");
     const statusEl = document.getElementById("file-status-kacosa");
     const wrapper = document.getElementById("file-wrapper-kacosa");
-    const validEl = document.getElementById("validacion-stock-kacosa-alertas");
+    const validEl = document.getElementById("validacion-stock-kacosa");
     const btnAnalizar = document.getElementById("btn-analizar-kacosa");
 
     archivoValido = false;
@@ -357,7 +357,6 @@ function mostrarAlertas(alertas) {
     totalAPedir: a.totalAPedir,
     proyeccionCompra: a.proyeccionCompra,
     empaque: a.empaque,
-    periodoDeAbastecimiento: a.periodoDeAbastecimiento,
     tipo: a.tipo,
     distribucion: a.distribucionPorTienda || {}
   }));
@@ -404,23 +403,33 @@ function mostrarAlertas(alertas) {
     const container = document.getElementById('alertas-tabla-container');
     if (container) {
       const { renderizar } = crearTablaPaginada(container, columnas, 50);
-      renderizar(datosTabla);
-    }
+      
+      // Guardar referencia a renderizar para usarla en el filtro
+      let renderizarTabla = renderizar;
+      
+      // Renderizar inicial
+      renderizarTabla(datosTabla);
 
-    const buscar = document.getElementById('alertas-buscar');
-    if (buscar) {
-      buscar.addEventListener('input', (e) => {
-        const termino = e.target.value.toLowerCase().trim();
-        if (!termino) {
-          renderizar(datosTabla);
-          return;
-        }
-        const filtrados = datosTabla.filter(m => 
-          String(m.codigo).toLowerCase().includes(termino) || 
-          String(m.descripcion).toLowerCase().includes(termino)
-        );
-        renderizar(filtrados);
-      });
+      // Configurar búsqueda
+      const buscar = document.getElementById('alertas-buscar');
+      if (buscar) {
+        buscar.addEventListener('input', (e) => {
+          const termino = e.target.value.toLowerCase().trim();
+          let datosFiltrados;
+          
+          if (!termino) {
+            datosFiltrados = datosTabla;
+          } else {
+            datosFiltrados = datosTabla.filter(m => 
+              String(m.codigo).toLowerCase().includes(termino) || 
+              String(m.descripcion).toLowerCase().includes(termino)
+            );
+          }
+          
+          // Re-renderizar la tabla con los datos filtrados
+          renderizarTabla(datosFiltrados);
+        });
+      }
     }
 
     const descargar = document.getElementById('btn-descargar-alertas');
