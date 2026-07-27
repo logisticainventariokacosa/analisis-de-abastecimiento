@@ -21,14 +21,11 @@ let ultimasAlertas = [];
 let periodoSeleccionado = 1;
 let mapaEmpaques = {};
 let archivoValido = false;
+let filasCache = null;
 
 function render() {
-  console.log("Alertas Kacosa: render() ejecutado");
   const cont = document.getElementById("alertas-kacosa-contenido");
-  if (!cont) {
-    console.warn("Alertas Kacosa: contenedor no encontrado");
-    return;
-  }
+  if (!cont) return;
 
   // Limpiar el contenido para reconstruirlo siempre
   cont.innerHTML = `
@@ -69,6 +66,10 @@ function render() {
     <div id="resultado-alertas"></div>
   `;
 
+  // Resetear estado
+  archivoValido = false;
+  filasCache = null;
+
   // Event listeners para botones de período
   document.querySelectorAll('.btn-periodo').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -86,102 +87,8 @@ function render() {
     });
   });
 
-  // Event listener para el archivo con validaciones
-  const input = document.getElementById("input-stock-kacosa");
-  const nameEl = document.getElementById("file-name-kacosa");
-  const statusEl = document.getElementById("file-status-kacosa");
-  const wrapper = document.getElementById("file-wrapper-kacosa");
-  const validEl = document.getElementById("validacion-stock-kacosa");
-  const btnAnalizar = document.getElementById("btn-analizar-kacosa");
-
-  // Resetear estado del archivo
-  archivoValido = false;
-  if (btnAnalizar) btnAnalizar.disabled = true;
-
-  if (input) {
-    // Remover listeners anteriores para evitar duplicados
-    const newInput = input.cloneNode(true);
-    input.parentNode.replaceChild(newInput, input);
-    
-    newInput.addEventListener('change', async function() {
-      archivoValido = false;
-      if (btnAnalizar) btnAnalizar.disabled = true;
-
-      if (this.files && this.files[0]) {
-        if (nameEl) nameEl.textContent = this.files[0].name;
-        if (statusEl) {
-          statusEl.textContent = '✓ Cargado';
-          statusEl.className = 'file-status loaded';
-        }
-        if (wrapper) wrapper.classList.add('loaded');
-
-        try {
-          const texto = await this.files[0].text();
-          const filas = parsearMHT(texto);
-          const resultado = validarArchivoStock(filas);
-          
-          if (validEl) {
-            validEl.textContent = resultado.mensaje;
-            validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
-          }
-          
-          if (resultado.valido) {
-            archivoValido = true;
-            if (btnAnalizar) btnAnalizar.disabled = false;
-            this.dataset.filas = JSON.stringify(filas);
-          } else {
-            archivoValido = false;
-            if (btnAnalizar) btnAnalizar.disabled = true;
-            this.dataset.filas = '';
-          }
-        } catch (err) {
-          if (validEl) {
-            validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
-            validEl.style.color = 'var(--rojo-alerta)';
-          }
-          archivoValido = false;
-          if (btnAnalizar) btnAnalizar.disabled = true;
-          this.dataset.filas = '';
-        }
-      } else {
-        if (nameEl) nameEl.textContent = 'Seleccionar archivo';
-        if (statusEl) {
-          statusEl.textContent = 'Pendiente';
-          statusEl.className = 'file-status empty';
-        }
-        if (wrapper) wrapper.classList.remove('loaded');
-        if (validEl) validEl.textContent = '';
-        archivoValido = false;
-        if (btnAnalizar) btnAnalizar.disabled = true;
-        this.dataset.filas = '';
-      }
-    });
-
-    // Drag and drop
-    if (wrapper) {
-      const newWrapper = wrapper.cloneNode(true);
-      wrapper.parentNode.replaceChild(newWrapper, wrapper);
-      
-      newWrapper.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        newWrapper.classList.add('dragover');
-      });
-      newWrapper.addEventListener('dragleave', () => {
-        newWrapper.classList.remove('dragover');
-      });
-      newWrapper.addEventListener('drop', (e) => {
-        e.preventDefault();
-        newWrapper.classList.remove('dragover');
-        if (e.dataTransfer.files.length) {
-          const inputField = newWrapper.querySelector('input[type="file"]');
-          if (inputField) {
-            inputField.files = e.dataTransfer.files;
-            inputField.dispatchEvent(new Event('change'));
-          }
-        }
-      });
-    }
-  }
+  // Configurar el input de archivo
+  setupFileInput();
 
   // Cargar paquetes
   cargarPaquetes().then(pkg => {
@@ -189,12 +96,109 @@ function render() {
   });
 
   // Evento del botón analizar
-  const btnAnalizarNew = document.getElementById("btn-analizar-kacosa");
-  if (btnAnalizarNew) {
-    // Remover listeners anteriores
-    const newBtn = btnAnalizarNew.cloneNode(true);
-    btnAnalizarNew.parentNode.replaceChild(newBtn, btnAnalizarNew);
-    newBtn.addEventListener("click", procesarArchivo);
+  const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+  if (btnAnalizar) {
+    btnAnalizar.addEventListener("click", procesarArchivo);
+  }
+}
+
+function setupFileInput() {
+  const input = document.getElementById("input-stock-kacosa");
+  const nameEl = document.getElementById("file-name-kacosa");
+  const statusEl = document.getElementById("file-status-kacosa");
+  const wrapper = document.getElementById("file-wrapper-kacosa");
+  const validEl = document.getElementById("validacion-stock-kacosa");
+  const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+
+  if (!input) return;
+
+  // Remover listeners anteriores (si los hay)
+  input.removeEventListener('change', handleFileChange);
+  
+  // Agregar el listener
+  input.addEventListener('change', handleFileChange);
+
+  // Configurar drag and drop
+  if (wrapper) {
+    wrapper.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      wrapper.classList.add('dragover');
+    });
+    wrapper.addEventListener('dragleave', () => {
+      wrapper.classList.remove('dragover');
+    });
+    wrapper.addEventListener('drop', (e) => {
+      e.preventDefault();
+      wrapper.classList.remove('dragover');
+      if (e.dataTransfer.files.length) {
+        input.files = e.dataTransfer.files;
+        // Disparar el evento change manualmente
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+
+  async function handleFileChange(e) {
+    const input = e.target;
+    const nameEl = document.getElementById("file-name-kacosa");
+    const statusEl = document.getElementById("file-status-kacosa");
+    const wrapper = document.getElementById("file-wrapper-kacosa");
+    const validEl = document.getElementById("validacion-stock-kacosa");
+    const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+
+    archivoValido = false;
+    filasCache = null;
+    if (btnAnalizar) btnAnalizar.disabled = true;
+
+    if (input.files && input.files[0]) {
+      const file = input.files[0];
+      if (nameEl) nameEl.textContent = file.name;
+      if (statusEl) {
+        statusEl.textContent = '✓ Cargado';
+        statusEl.className = 'file-status loaded';
+      }
+      if (wrapper) wrapper.classList.add('loaded');
+
+      try {
+        const texto = await file.text();
+        const filas = parsearMHT(texto);
+        const resultado = validarArchivoStock(filas);
+        
+        if (validEl) {
+          validEl.textContent = resultado.mensaje;
+          validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
+        }
+        
+        if (resultado.valido) {
+          archivoValido = true;
+          filasCache = filas;
+          if (btnAnalizar) btnAnalizar.disabled = false;
+        } else {
+          archivoValido = false;
+          filasCache = null;
+          if (btnAnalizar) btnAnalizar.disabled = true;
+        }
+      } catch (err) {
+        if (validEl) {
+          validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
+          validEl.style.color = 'var(--rojo-alerta)';
+        }
+        archivoValido = false;
+        filasCache = null;
+        if (btnAnalizar) btnAnalizar.disabled = true;
+      }
+    } else {
+      if (nameEl) nameEl.textContent = 'Seleccionar archivo';
+      if (statusEl) {
+        statusEl.textContent = 'Pendiente';
+        statusEl.className = 'file-status empty';
+      }
+      if (wrapper) wrapper.classList.remove('loaded');
+      if (validEl) validEl.textContent = '';
+      archivoValido = false;
+      filasCache = null;
+      if (btnAnalizar) btnAnalizar.disabled = true;
+    }
   }
 }
 
@@ -244,12 +248,11 @@ function validarArchivoStock(filas) {
 }
 
 async function procesarArchivo() {
-  const input = document.getElementById("input-stock-kacosa");
   const estado = document.getElementById("estado-alertas");
   const resultado = document.getElementById("resultado-alertas");
   if (resultado) resultado.innerHTML = "";
 
-  if (!archivoValido || !input || !input.files || input.files.length === 0) {
+  if (!archivoValido || !filasCache) {
     if (estado) estado.textContent = "⚠️ El archivo no es válido. Verifica que tenga las columnas correctas y solo centros 1000/3000.";
     return;
   }
@@ -262,18 +265,7 @@ async function procesarArchivo() {
     }
     if (estado) estado.textContent = "Procesando archivo...";
 
-    // Recuperar las filas guardadas en el dataset
-    const filasData = input.dataset.filas;
-    if (!filasData) {
-      if (estado) estado.textContent = "⚠️ Error: No se encontraron datos del archivo. Vuelve a seleccionarlo.";
-      if (btnAnalizar) {
-        btnAnalizar.disabled = false;
-        btnAnalizar.textContent = "📊 Analizar stock";
-      }
-      return;
-    }
-
-    const filas = JSON.parse(filasData);
+    const filas = filasCache;
 
     if (estado) estado.textContent = "Agrupando stock por material...";
     const stockPorMaterial = agruparStockKacosa(filas);
