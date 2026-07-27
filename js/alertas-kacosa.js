@@ -17,19 +17,16 @@ const COLUMNAS_STOCK = [
 // Centros permitidos para Kacosa
 const CENTROS_KACOSA = ["1000", "3000"];
 
-const CENTROS_KACOSA = ["1000", "3000"];
 let ultimasAlertas = [];
 let periodoSeleccionado = 1;
 let mapaEmpaques = {};
-let vistaConstruida = false;
 let archivoValido = false;
 
 function render() {
-  if (vistaConstruida) return;
   const cont = document.getElementById("alertas-kacosa-contenido");
   if (!cont) return;
-  vistaConstruida = true;
 
+  // Limpiar el contenido para reconstruirlo siempre
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
@@ -92,6 +89,10 @@ function render() {
   const wrapper = document.getElementById("file-wrapper-kacosa");
   const validEl = document.getElementById("validacion-stock-kacosa");
   const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+
+  // Resetear estado del archivo
+  archivoValido = false;
+  btnAnalizar.disabled = true;
 
   if (input) {
     input.addEventListener('change', async () => {
@@ -246,7 +247,7 @@ async function procesarArchivo() {
     estado.textContent = "Agrupando stock por material...";
     const stockPorMaterial = agruparStockKacosa(filas);
 
-    estado.textContent = "Cruzando contra Alta Rotación y los últimos análisis de las 12 tiendas...";
+    estado.textContent = "Cruzando contra Alta Rotación y los últimos análisis de las tiendas...";
     const resp = await callBridge("alertasKacosa", { 
       stockKacosa: stockPorMaterial,
       periodoMeses: periodoSeleccionado,
@@ -522,5 +523,7 @@ function descargarAlertasExcel(alertas) {
 }
 
 document.addEventListener("kacosa:vista-cambiada", (e) => {
-  if (e.detail.vista === "vista-alertas-kacosa") render();
+  if (e.detail.vista === "vista-alertas-kacosa") {
+    render();
+  }
 });
