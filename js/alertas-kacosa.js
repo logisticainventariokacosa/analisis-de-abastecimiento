@@ -6,6 +6,7 @@ import { nombrePorId, TIENDAS } from "./tiendas.js";
 import { obtenerInfoPaquete, cargarPaquetes } from "./paquetes.js";
 import { notificarExito } from "./notificaciones.js";
 import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.js";
+import { esCodigoExcluido } from "./exclusiones.js";
 
 // Columnas requeridas para el archivo de stock
 const COLUMNAS_STOCK = [
@@ -292,6 +293,7 @@ function agruparStockKacosa(filas) {
 
     const codigo = String(f["Material"] || "").trim();
     if (!codigo) return;
+    if (esCodigoExcluido(codigo)) return; // código en lista de exclusión: se ignora por completo
 
     const libreUtilizacion = aNumero(f["Libre utilización"]);
     const transTrasl = aNumero(f["Trans./Trasl."]);
@@ -313,6 +315,13 @@ function agruparStockKacosa(filas) {
 
 function mostrarAlertas(alertas) {
   ultimasAlertas = alertas;
+
+  // Se exponen las alertas globalmente para que el chat con Gemini
+  // pueda usarlas como contexto adicional (ver js/chat.js).
+  window.KACOSA = window.KACOSA || {};
+  window.KACOSA.ultimasAlertasKacosa = alertas;
+  window.KACOSA.periodoAlertasKacosa = periodoSeleccionado;
+
   const resultado = document.getElementById("resultado-alertas");
 
   if (alertas.length === 0) {
