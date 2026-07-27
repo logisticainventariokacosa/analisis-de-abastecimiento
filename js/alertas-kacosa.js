@@ -349,6 +349,7 @@ function mostrarAlertas(alertas) {
   const sinStock = alertas.filter(a => a.tipo === "SIN_STOCK");
   const stockBajo = alertas.filter(a => a.tipo === "STOCK_BAJO");
 
+  // Asegurar que periodoDeAbastecimiento tenga valor
   const datosTabla = alertas.map(a => ({
     codigo: a.codigo,
     descripcion: a.descripcion,
@@ -357,6 +358,7 @@ function mostrarAlertas(alertas) {
     totalAPedir: a.totalAPedir,
     proyeccionCompra: a.proyeccionCompra,
     empaque: a.empaque,
+    periodoDeAbastecimiento: a.periodoDeAbastecimiento || `${periodoSeleccionado} mes(es)`,
     tipo: a.tipo,
     distribucion: a.distribucionPorTienda || {}
   }));
@@ -519,7 +521,7 @@ function descargarAlertasExcel(alertas) {
     totalAPedir: a.totalAPedir,
     proyeccionCompra: a.proyeccionCompra,
     empaque: a.empaque,
-    periodoDeAbastecimiento: a.periodoDeAbastecimiento,
+    periodoDeAbastecimiento: a.periodoDeAbastecimiento || `${periodoSeleccionado} mes(es)`,
     tipo: a.tipo,
     alertaTexto: a.tipo === "SIN_STOCK" ? "Sin stock" : "Stock bajo",
     distribucion: Object.entries(a.distribucionPorTienda || {})
@@ -542,7 +544,7 @@ function descargarAlertasExcel(alertas) {
       { label: "Proyección de compra total", valor: totalProyeccion, color: "FF2F8F6E" }
     ],
     [
-      `Periodo de abastecimiento proyectado: ${filas[0]?.periodoDeAbastecimiento || "—"}`,
+      `Periodo de abastecimiento proyectado: ${filas[0]?.periodoDeAbastecimiento || `${periodoSeleccionado} mes(es)`}`,
       `Generado el ${new Date().toLocaleDateString("es-VE")}.`,
       "Sistema de Abastecimiento KACOSA."
     ]
