@@ -2,7 +2,7 @@
 // Punto único de comunicación con el Apps Script (Gemini, Sheets, Drive, Email).
 
 // URL de tu implementación /exec del Apps Script
-const BRIDGE_URL = "https://script.google.com/macros/s/AKfycbxau7hdH3_sHoqGTDjUlZYAI5s5xMIPKM0ZzrDzeQlTVJ7iA3Jj78_3Zv7O28wQAEjFIg/exec";
+const BRIDGE_URL = "https://script.google.com/macros/s/AKfycbwjvVHEaLseLfbTzHPGes6RcPxAjpRUdeM-6FaQuAuK__0mWgUadh_sG5UgTsuUctp4FQ/exec";
 
 // Debe coincidir EXACTAMENTE con la propiedad APP_TOKEN que pusiste en el Apps Script
 const APP_TOKEN = "kacosa2026dr";
