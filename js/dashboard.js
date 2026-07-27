@@ -100,12 +100,27 @@ async function cargarAnalisis() {
 
 function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
-  materialesCache = analisis.materiales;
   
-  const totalAPedir = materialesCache.reduce((acc, m) => acc + Number(m.aPedir || 0), 0);
-  const quiebres = materialesCache.filter(m => Number(m.stockKacosa) <= 0 && Number(m.aPedir) === 0).length;
+  // Convertir todos los valores numéricos a número, evitando NaN y fechas
+  materialesCache = analisis.materiales.map(m => ({
+    ...m,
+    aPedir: typeof m.aPedir === 'number' ? m.aPedir : (Number(m.aPedir) || 0),
+    totalVentas: typeof m.totalVentas === 'number' ? m.totalVentas : (Number(m.totalVentas) || 0),
+    promedioVentasPeriodo: typeof m.promedioVentasPeriodo === 'number' ? m.promedioVentasPeriodo : (Number(m.promedioVentasPeriodo) || 0),
+    stockTienda: typeof m.stockTienda === 'number' ? m.stockTienda : (Number(m.stockTienda) || 0),
+    stockKacosa: typeof m.stockKacosa === 'number' ? m.stockKacosa : (Number(m.stockKacosa) || 0),
+    aPedirIdeal: typeof m.aPedirIdeal === 'number' ? m.aPedirIdeal : (Number(m.aPedirIdeal) || 0),
+    pendiente: typeof m.pendiente === 'number' ? m.pendiente : (Number(m.pendiente) || 0),
+    empaque: typeof m.empaque === 'number' ? m.empaque : (Number(m.empaque) || 1)
+  }));
+  
+  const totalAPedir = materialesCache.reduce((acc, m) => acc + (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0), 0);
+  const quiebres = materialesCache.filter(m => (typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0) <= 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0).length;
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
-  materialesCache.forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
+  materialesCache.forEach(m => { 
+    const clase = m.clase || '';
+    if (porClase[clase] !== undefined) porClase[clase]++; 
+  });
 
   resultadoDiv.innerHTML = `
     <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${analisis.fechaAnalisis || "—"}</strong></p>
@@ -153,6 +168,7 @@ function mostrarDashboard(analisis) {
   const container = document.getElementById('dash-tabla-container');
   const { renderizar } = crearTablaPaginada(container, columnas, 50);
   
+  // Pasar los datos con valores ya convertidos
   renderizar(materialesCache);
 
   // Evento de búsqueda
@@ -184,15 +200,18 @@ function descargarExcelDashboard(materiales, analisis) {
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
   // Separar por categorías (aproximado con los campos guardados en Sheets)
-  const pedido = materiales.filter(m => m.aPedir > 0);
-  const noPedido = materiales.filter(m => m.aPedir === 0);
-  const pendienteStock = materiales.filter(m => m.stockKacosa <= 0 && m.aPedir === 0);
-  const sugerencias = materiales.filter(m => m.stockKacosa > 0 && m.aPedir === 0);
-  const sinRotacion = materiales.filter(m => m.stockTienda > 0 && m.aPedir === 0);
+  const pedido = materiales.filter(m => (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) > 0);
+  const noPedido = materiales.filter(m => (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
+  const pendienteStock = materiales.filter(m => (typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0) <= 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
+  const sugerencias = materiales.filter(m => (typeof m.stockKacosa === 'number' ? m.stockKacosa : Number(m.stockKacosa) || 0) > 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
+  const sinRotacion = materiales.filter(m => (typeof m.stockTienda === 'number' ? m.stockTienda : Number(m.stockTienda) || 0) > 0 && (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0) === 0);
 
-  const totalAPedir = pedido.reduce((acc, m) => acc + Number(m.aPedir || 0), 0);
+  const totalAPedir = pedido.reduce((acc, m) => acc + (typeof m.aPedir === 'number' ? m.aPedir : Number(m.aPedir) || 0), 0);
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
-  materiales.forEach(m => { if (porClase[m.clase] !== undefined) porClase[m.clase]++; });
+  materiales.forEach(m => { 
+    const clase = m.clase || '';
+    if (porClase[clase] !== undefined) porClase[clase]++; 
+  });
 
   const wb = XLSX.utils.book_new();
 
