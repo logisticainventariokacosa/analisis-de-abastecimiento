@@ -47,7 +47,7 @@ onAuthStateChanged(auth, async (user) => {
   ocultarLoader();
 });
 
-// --- Menú hamburguesa (móvil) ---
+// --- Menú hamburguesa: abre y cierra con el mismo botón, o tocando fuera ---
 const btnHamburguesa = document.getElementById("btn-hamburguesa");
 const sidebar = document.getElementById("sidebar");
 const overlay = document.getElementById("overlay-sidebar");
@@ -55,14 +55,46 @@ const overlay = document.getElementById("overlay-sidebar");
 function abrirMenu() {
   sidebar.classList.add("abierto");
   overlay.classList.add("visible");
+  if (btnHamburguesa) btnHamburguesa.classList.add("activo");
 }
 function cerrarMenu() {
   sidebar.classList.remove("abierto");
   overlay.classList.remove("visible");
+  if (btnHamburguesa) btnHamburguesa.classList.remove("activo");
+}
+function alternarMenu() {
+  if (sidebar.classList.contains("abierto")) cerrarMenu(); else abrirMenu();
 }
 
-if (btnHamburguesa) btnHamburguesa.addEventListener("click", abrirMenu);
+if (btnHamburguesa) btnHamburguesa.addEventListener("click", alternarMenu);
 if (overlay) overlay.addEventListener("click", cerrarMenu);
+
+// --- Modal de cuenta de usuario (avatar en el header) ---
+const btnUserAvatar = document.getElementById("btn-user-avatar");
+const overlayUserModal = document.getElementById("overlay-user-modal");
+const btnUserCancelar = document.getElementById("btn-user-cancelar");
+const btnUserCerrarSesion = document.getElementById("btn-user-cerrar-sesion");
+
+function abrirModalUsuario() {
+  const u = window.KACOSA?.usuario;
+  const nombreEl = document.getElementById("user-modal-nombre");
+  const correoEl = document.getElementById("user-modal-correo");
+  if (nombreEl) nombreEl.textContent = (u?.nombre || u?.displayName || u?.email || "Usuario");
+  if (correoEl) correoEl.textContent = u?.email || "";
+  if (overlayUserModal) overlayUserModal.classList.add("visible");
+}
+function cerrarModalUsuario() {
+  if (overlayUserModal) overlayUserModal.classList.remove("visible");
+}
+
+if (btnUserAvatar) btnUserAvatar.addEventListener("click", abrirModalUsuario);
+if (btnUserCancelar) btnUserCancelar.addEventListener("click", cerrarModalUsuario);
+if (overlayUserModal) {
+  overlayUserModal.addEventListener("click", (e) => {
+    if (e.target === overlayUserModal) cerrarModalUsuario(); // clic afuera del recuadro
+  });
+}
+if (btnUserCerrarSesion) btnUserCerrarSesion.addEventListener("click", cerrarSesion);
 
 // --- Cambio de vista ---
 const botonesNav = document.querySelectorAll("[data-vista]");
@@ -81,7 +113,3 @@ botonesNav.forEach(btn => {
 
 // Vista inicial
 mostrarVista("vista-dashboard");
-
-// --- Cerrar sesión ---
-const btnSalir = document.getElementById("btn-cerrar-sesion");
-if (btnSalir) btnSalir.addEventListener("click", cerrarSesion);
