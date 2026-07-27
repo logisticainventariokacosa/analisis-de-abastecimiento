@@ -123,6 +123,11 @@ async function cargarAnalisis() {
 function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
   materialesCache = analisis.materiales;
+
+  // Se expone el análisis del Dashboard globalmente para que el chat con
+  // Gemini pueda usarlo como contexto adicional (ver js/chat.js).
+  window.KACOSA = window.KACOSA || {};
+  window.KACOSA.ultimoDashboardAnalisis = analisis;
   
   const totalMaterialesAPedir = materialesCache.filter(m => m.aPedir > 0).length;
   const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + m.aPedir, 0);
