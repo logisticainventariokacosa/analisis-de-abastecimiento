@@ -82,7 +82,7 @@ function render() {
     <div class="card">
       <h3 style="margin-top:0; font-size:16px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
         <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px"><i class="fa-solid fa-file-lines"></i></span>
-        1. Archivos y parámetros
+        Archivos y parámetros
       </h3>
 
       ${tieneVariasTiendas ? `
@@ -528,7 +528,7 @@ function mostrarDuplicados(grupos) {
 
   cont.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">2. Posibles duplicados detectados</h3>
+      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">Posibles duplicados detectados</h3>
       <p class="vista-sub">Marca los grupos que SÍ son el mismo material (se fusionará su rotación bajo un solo código).</p>
       ${grupos.map((grupo, idx) => `
         <label style="display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid var(--borde); cursor:pointer">
@@ -721,7 +721,7 @@ function mostrarResultados(resultado, sugerencias) {
 
   cont.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">3. Resultado</h3>
+      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">Resultado</h3>
       <p class="vista-sub" style="margin-top:-4px">${textoPeriodo}</p>
       <div class="kpi-grid">
         <div class="kpi-card verde">
@@ -767,7 +767,7 @@ function mostrarResultados(resultado, sugerencias) {
       </p>
 
       <div class="btn-group">
-        <button id="btn-descargar-excel" class="btn-primario"><i class="fa-solid fa-download"></i> Descargar Excel (1 archivo, 5 pestañas)</button>
+        <button id="btn-descargar-excel" class="btn-primario"><i class="fa-solid fa-download"></i> Descargar Excel</button>
         <button id="btn-guardar-analisis" class="btn-secundario"><i class="fa-solid fa-arrows-rotate"></i> Volver a guardar</button>
         <button id="btn-enviar-correo" class="btn-secundario"><i class="fa-solid fa-envelope"></i> Enviar por correo</button>
       </div>
