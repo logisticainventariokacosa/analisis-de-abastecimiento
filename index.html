@@ -19,7 +19,6 @@
         </div>
       </div>
 
-      <!-- FORM LOGIN -->
       <form id="form-login">
         <label for="login-email"><i class="fa-solid fa-envelope"></i> Correo electrónico</label>
         <input type="email" id="login-email" placeholder="tu@correo.com" maxlength="50" required>
@@ -49,7 +48,6 @@
 
       <div id="mensaje-error"></div>
 
-      <!-- BOTÓN DE RESTRICCIÓN - Estilo elegante -->
       <button type="button" class="btn-restriccion" id="btn-restriccion">
         <i class="fa-solid fa-shield-halved"></i>
         <span>Acceso restringido</span>
@@ -58,7 +56,6 @@
     </div>
   </div>
 
-  <!-- MODAL DE RESTRICCIÓN -->
   <div class="modal-overlay" id="modal-restriccion">
     <div class="modal-container">
       <div class="modal-icono">
@@ -79,8 +76,8 @@
   <script type="module" src="js/auth.js"></script>
 
   <script>
-    // Toggle password (ojito para mostrar/ocultar contraseña)
     document.addEventListener('DOMContentLoaded', function() {
+      // Toggle password
       const toggleBtn = document.getElementById('toggle-password');
       const passwordInput = document.getElementById('login-password');
       const icon = document.getElementById('password-icon');
@@ -92,12 +89,8 @@
           icon.className = isPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
         });
       }
-    });
 
-    // =========================================================
-    //  MODAL DE RESTRICCIÓN
-    // =========================================================
-    document.addEventListener('DOMContentLoaded', function() {
+      // Modal
       const btnRestriccion = document.getElementById('btn-restriccion');
       const modal = document.getElementById('modal-restriccion');
       const btnAceptar = document.getElementById('modal-aceptar');
@@ -105,7 +98,6 @@
 
       function abrirModal() {
         modal.classList.add('visible');
-        // Auto-cierre después de 5 segundos
         if (temporizador) clearTimeout(temporizador);
         temporizador = setTimeout(cerrarModal, 5000);
       }
@@ -118,17 +110,14 @@
         }
       }
 
-      // Abrir al hacer clic en el botón
       if (btnRestriccion) {
         btnRestriccion.addEventListener('click', abrirModal);
       }
 
-      // Cerrar con el botón "Entendido"
       if (btnAceptar) {
         btnAceptar.addEventListener('click', cerrarModal);
       }
 
-      // Cerrar al hacer clic fuera del modal
       if (modal) {
         modal.addEventListener('click', function(e) {
           if (e.target === modal) {
@@ -137,7 +126,6 @@
         });
       }
 
-      // Cerrar con tecla ESC
       document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape' && modal && modal.classList.contains('visible')) {
           cerrarModal();
