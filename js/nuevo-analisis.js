@@ -8,9 +8,9 @@ import { detectarCandidatosLocal, confirmarConGemini, fusionarDuplicados } from 
 import { TIENDAS, nombrePorId, centrosDeTienda } from "./tiendas.js";
 import { callBridge } from "./bridge.js";
 import { crearTablaPaginada } from "./tabla-utils.js";
-import { leerXLSXGenerico, procesarPendientesSync, restarPendientesSync } from "./pendientes-sync-parser.js";
 import { notificarExito } from "./notificaciones.js";
 import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.js";
+import { leerXLSXGenerico, procesarPendientesSync, restarPendientesSync } from "./pendientes-sync-parser.js";
 
 const CENTROS_KACOSA = ["1000", "3000"];
 
@@ -40,7 +40,7 @@ let estado = {
   ventasProcesadas: null,
   stockTienda: null,
   stockKacosa: null,
-  notasPendientes: null, // nuevo: mapa codigo -> { cantidad, numeroNota, fechaNota }
+  notasPendientes: null,
   clustersCandidatos: [],
   gruposGemini: [],
   tiendaSeleccionada: null,
@@ -53,7 +53,7 @@ let estado = {
   mesesCantidad: null,
   margenPct: null,
   analisisCompleto: null,
-  analizando: false // ← Evita múltiples análisis simultáneos
+  analizando: false
 };
 
 function tiendasDelUsuario() {
@@ -412,8 +412,20 @@ async function ejecutarAnalisis() {
     // Archivo opcional de notas pendientes por despacho
     let notasPendientes = null;
     if (archivoNotasPendientes) {
-      estadoTexto.textContent = "Procesando notas pendientes por despacho...";
+      estadoTexto.textContent = "Validando archivo de notas pendientes por despacho...";
       const filasNotas = parsearMHT(await archivoNotasPendientes.text());
+      
+      // Validar que el archivo de notas contenga el centro correcto
+      const errorNotas = validarCentroNotasPendientes(filasNotas, centrosValidos);
+      if (errorNotas) {
+        estadoTexto.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + errorNotas;
+        btnAnalizar.disabled = false;
+        btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
+        estado.analizando = false;
+        return;
+      }
+      
+      estadoTexto.textContent = "Procesando notas pendientes por despacho...";
       notasPendientes = procesarNotasPendientes(filasNotas, centrosValidos);
       if (notasPendientes && Object.keys(notasPendientes).length > 0) {
         estadoTexto.textContent = `Se encontraron ${Object.keys(notasPendientes).length} material(es) con notas pendientes por despacho.`;
@@ -475,6 +487,33 @@ async function ejecutarAnalisis() {
     btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
     estado.analizando = false;
   }
+}
+
+/**
+ * Valida que el archivo de notas pendientes por despacho contenga al menos un
+ * centro receptor que coincida con los centros de la tienda seleccionada.
+ */
+function validarCentroNotasPendientes(filas, centrosValidos) {
+  if (filas.length === 0) {
+    return "El archivo de notas pendientes está vacío o no tiene datos.";
+  }
+
+  const centrosEnNotas = new Set();
+  filas.forEach(f => {
+    const centro = String(f["Centro Receptor"] || "").trim();
+    if (centro) centrosEnNotas.add(centro);
+  });
+
+  if (centrosEnNotas.size === 0) {
+    return "El archivo de notas pendientes no tiene datos de 'Centro Receptor' reconocibles.";
+  }
+
+  const centrosCoincidentes = [...centrosEnNotas].filter(c => centrosValidos.includes(c));
+  if (centrosCoincidentes.length === 0) {
+    return `El archivo de notas pendientes contiene el/los centro(s) ${[...centrosEnNotas].join(", ")}, pero la tienda seleccionada corresponde a ${centrosValidos.join(" o ")}. Verifica que subiste el archivo correcto.`;
+  }
+
+  return null;
 }
 
 // ============================================================
@@ -773,7 +812,7 @@ function mostrarResultados(resultado, sugerencias) {
 }
 
 // ============================================================
-//  FUNCIONES AUXILIARES (SIN CAMBIOS)
+//  FUNCIONES AUXILIARES
 // ============================================================
 function validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centrosValidos) {
   const extraerCentros = (filas) =>
