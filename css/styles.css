@@ -206,24 +206,6 @@ input::placeholder {
   background: var(--borde);
 }
 
-.toggle-form {
-  text-align: center;
-  margin-top: 20px;
-  font-size: 13px;
-  color: var(--texto-secundario);
-}
-
-.toggle-form a {
-  color: var(--azul-base);
-  font-weight: 600;
-  text-decoration: none;
-  transition: var(--transicion);
-}
-
-.toggle-form a:hover {
-  color: var(--ambar-oscuro);
-}
-
 #mensaje-error {
   display: none;
   background: var(--rojo-claro);
