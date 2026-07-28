@@ -136,6 +136,22 @@ function mostrarDashboard(analisis) {
   const totalMaterialesAPedir = materialesCache.filter(m => m.aPedir > 0).length;
   const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + m.aPedir, 0);
   
+  // ============================================================
+  //  NUEVAS MÉTRICAS
+  // ============================================================
+  // 1. Material con mayor venta
+  let materialMayorVenta = null;
+  let maxVentas = 0;
+  materialesCache.forEach(m => {
+    if (m.totalVentas > maxVentas) {
+      maxVentas = m.totalVentas;
+      materialMayorVenta = m;
+    }
+  });
+
+  // 2. Total de materiales con ventas (> 0)
+  const totalMaterialesConVentas = materialesCache.filter(m => m.totalVentas > 0).length;
+
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
     const clase = (m.clase || '').toUpperCase();
@@ -159,6 +175,34 @@ function mostrarDashboard(analisis) {
         <div class="kpi-icono"><i class="fa-solid fa-layer-group"></i></div>
         <div class="label">Clase A / B / C / D</div>
         <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
+      </div>
+      <!-- NUEVA TARJETA: Material con mayor venta -->
+      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F4FD 130%);">
+        <div class="kpi-icono" style="background: linear-gradient(135deg, #2A4060, #1E2F47); box-shadow: 0 4px 12px rgba(42, 64, 96, 0.35);">
+          <i class="fa-solid fa-trophy"></i>
+        </div>
+        <div class="label">Material con mayor venta</div>
+        <div class="valor" style="font-size:16px; line-height:1.3; margin-top:2px;">
+          ${materialMayorVenta ? `
+            <span style="display:block; font-size:13px; font-weight:600; color:var(--azul-base);">
+              ${materialMayorVenta.codigo}
+            </span>
+            <span style="display:block; font-size:13px; font-weight:400; color:var(--texto-secundario);">
+              ${materialMayorVenta.descripcion.substring(0, 30)}${materialMayorVenta.descripcion.length > 30 ? '...' : ''}
+            </span>
+            <span style="display:block; font-size:18px; font-weight:700; color:var(--azul-medio); margin-top:4px;">
+              ${Math.round(maxVentas)} und.
+            </span>
+          ` : '—'}
+        </div>
+      </div>
+      <!-- NUEVA TARJETA: Total materiales con ventas -->
+      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #F0F0F0 130%);">
+        <div class="kpi-icono" style="background: linear-gradient(135deg, #5E6A7A, #8A95A5); box-shadow: 0 4px 12px rgba(94, 106, 122, 0.35);">
+          <i class="fa-solid fa-chart-line"></i>
+        </div>
+        <div class="label">Materiales con ventas</div>
+        <div class="valor">${totalMaterialesConVentas}</div>
       </div>
     </div>
     <div class="card">
@@ -286,7 +330,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     { key: 'aPedir', label: 'A_Pedir', ancho: 10 },
     { key: 'porDespacho', label: 'Por_Despacho', ancho: 12 },
     { key: 'numeroDeNota', label: 'Numero_De_Nota', ancho: 14 },
-    { key: 'fechaDeNota', label: 'Fecha_De_Nota', ancho: 14 },
+    { key: 'fechaDeNota', label: 'Fecha_De_Nota', uncho: 14 },
     { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
     { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
     { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
