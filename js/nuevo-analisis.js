@@ -76,7 +76,7 @@ function render() {
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:16px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
-        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px">📄</span>
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px"><i class="fa-solid fa-file-lines"></i></span>
         1. Archivos y parámetros
       </h3>
 
@@ -95,7 +95,7 @@ function render() {
       <div style="margin-top:16px">
         <label class="form-label" for="na-ventas">Archivo de ventas <span class="required">*</span></label>
         <div class="file-input-wrapper" id="file-wrapper-ventas">
-          <span class="file-icon">📊</span>
+          <span class="file-icon"><i class="fa-solid fa-chart-column"></i></span>
           <div class="file-info">
             <div class="file-name" id="file-name-ventas">Seleccionar archivo</div>
             <div class="file-hint">.MHT de SAP · Ventas</div>
@@ -110,7 +110,7 @@ function render() {
       <div style="margin-top:16px">
         <label class="form-label" for="na-stock-tienda">Stock de la tienda <span class="required">*</span></label>
         <div class="file-input-wrapper" id="file-wrapper-stock-tienda">
-          <span class="file-icon">🏪</span>
+          <span class="file-icon"><i class="fa-solid fa-store"></i></span>
           <div class="file-info">
             <div class="file-name" id="file-name-stock-tienda">Seleccionar archivo</div>
             <div class="file-hint">.MHT de SAP · Stock tienda</div>
@@ -125,7 +125,7 @@ function render() {
       <div style="margin-top:16px">
         <label class="form-label" for="na-stock-kacosa">Stock de Kacosa <span class="required">*</span></label>
         <div class="file-input-wrapper" id="file-wrapper-stock-kacosa">
-          <span class="file-icon">🏢</span>
+          <span class="file-icon"><i class="fa-solid fa-building"></i></span>
           <div class="file-info">
             <div class="file-name" id="file-name-stock-kacosa">Seleccionar archivo</div>
             <div class="file-hint">.MHT de SAP · Stock Kacosa</div>
@@ -140,7 +140,7 @@ function render() {
       <div style="margin-top:16px">
         <label class="form-label" for="na-pendientes-sync">Materiales pendientes por sincronizar <span style="color:var(--texto-claro); font-weight:400">(opcional)</span></label>
         <div class="file-input-wrapper" id="file-wrapper-pendientes-sync">
-          <span class="file-icon">🔄</span>
+          <span class="file-icon"><i class="fa-solid fa-arrows-rotate"></i></span>
           <div class="file-info">
             <div class="file-name" id="file-name-pendientes-sync">Seleccionar archivo</div>
             <div class="file-hint">.xlsx propio · Columnas: Material, Cantidad_por_sincronizar</div>
@@ -179,7 +179,7 @@ function render() {
 
       <!-- Botón Analizar -->
       <button id="btn-analizar" class="btn-primario" style="margin-top:20px; min-width:200px">
-        🚀 Analizar
+        <i class="fa-solid fa-bolt"></i> Analizar
       </button>
       <p id="na-estado" class="estado-texto" style="margin-top:12px"></p>
     </div>
@@ -209,7 +209,7 @@ function render() {
       input.addEventListener('change', async () => {
         if (input.files && input.files[0]) {
           nameEl.textContent = input.files[0].name;
-          statusEl.textContent = '✓ Cargado';
+          statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Cargado';
           statusEl.className = 'file-status loaded';
           wrapper.classList.add('loaded');
 
@@ -219,11 +219,11 @@ function render() {
               const filas = parsearMHT(texto);
               const columnasRequeridas = tipo === 'ventas' ? COLUMNAS_VENTAS : COLUMNAS_STOCK;
               const resultado = validarColumnasArchivo(filas, columnasRequeridas, tipo);
-              validEl.textContent = resultado.mensaje;
+              validEl.innerHTML = resultado.mensaje;
               validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
               input.dataset.valido = resultado.valido ? 'true' : 'false';
             } catch (err) {
-              validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
+              validEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error al leer el archivo: ' + err.message;
               validEl.style.color = 'var(--rojo-alerta)';
               input.dataset.valido = 'false';
             }
@@ -234,7 +234,7 @@ function render() {
           statusEl.className = 'file-status empty';
           wrapper.classList.remove('loaded');
           if (validEl) {
-            validEl.textContent = '';
+            validEl.innerHTML = '';
             input.dataset.valido = 'false';
           }
         }
@@ -274,20 +274,20 @@ function render() {
 // ============================================================
 function validarColumnasArchivo(filas, columnasRequeridas, tipo) {
   if (filas.length === 0) {
-    return { valido: false, mensaje: '⚠️ El archivo está vacío o no tiene datos', faltantes: columnasRequeridas };
+    return { valido: false, mensaje: '<i class="fa-solid fa-triangle-exclamation"></i> El archivo está vacío o no tiene datos', faltantes: columnasRequeridas };
   }
 
   const columnasExistentes = Object.keys(filas[0]);
   const faltantes = columnasRequeridas.filter(col => !columnasExistentes.includes(col));
 
   if (faltantes.length === 0) {
-    return { valido: true, mensaje: `✅ Archivo válido: contiene todas las columnas requeridas (${columnasRequeridas.length})`, faltantes: [] };
+    return { valido: true, mensaje: `<i class="fa-solid fa-circle-check"></i> Archivo válido: contiene todas las columnas requeridas (${columnasRequeridas.length})`, faltantes: [] };
   }
 
   const nombreTipo = tipo === 'ventas' ? 'ventas' : 'stock';
   return {
     valido: false,
-    mensaje: `⚠️ El archivo de ${nombreTipo} no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`,
+    mensaje: `<i class="fa-solid fa-triangle-exclamation"></i> El archivo de ${nombreTipo} no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`,
     faltantes: faltantes
   };
 }
@@ -319,7 +319,7 @@ function verificarArchivosValidos() {
 // ============================================================
 async function ejecutarAnalisis() {
   if (estado.analizando) {
-    document.getElementById("na-estado").textContent = "⏳ Ya hay un análisis en progreso. Espera a que termine.";
+    document.getElementById("na-estado").innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Ya hay un análisis en progreso. Espera a que termine.';
     return;
   }
 
@@ -357,7 +357,7 @@ async function ejecutarAnalisis() {
     estado.analizando = true;
     const btnAnalizar = document.getElementById("btn-analizar");
     btnAnalizar.disabled = true;
-    btnAnalizar.textContent = "⏳ Analizando...";
+    btnAnalizar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando...';
 
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
@@ -371,9 +371,9 @@ async function ejecutarAnalisis() {
     estadoTexto.textContent = "Validando centros de los archivos...";
     const errorValidacion = validarCentros(filasVentas, filasStockTienda, filasStockKacosa, centrosValidos);
     if (errorValidacion) {
-      estadoTexto.textContent = "⚠️ " + errorValidacion;
+      estadoTexto.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + errorValidacion;
       btnAnalizar.disabled = false;
-      btnAnalizar.textContent = "🚀 Analizar";
+      btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
       estado.analizando = false;
       return;
     }
@@ -431,7 +431,7 @@ async function ejecutarAnalisis() {
     console.error(err);
     const btnAnalizar = document.getElementById("btn-analizar");
     btnAnalizar.disabled = false;
-    btnAnalizar.textContent = "🚀 Analizar";
+    btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
     estado.analizando = false;
   }
 }
@@ -559,9 +559,9 @@ async function finalizarCalculo(gruposConfirmados) {
     materiales: estado.resultadoFinal
   });
   if (estadoAcciones) {
-    estadoAcciones.textContent = respGuardado.ok
-      ? `✓ Guardado automáticamente en Google Sheets. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
-      : "⚠️ No se pudo guardar automáticamente: " + respGuardado.error;
+    estadoAcciones.innerHTML = respGuardado.ok
+      ? `<i class="fa-solid fa-circle-check"></i> Guardado automáticamente en Google Sheets. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
+      : '<i class="fa-solid fa-triangle-exclamation"></i> No se pudo guardar automáticamente: ' + respGuardado.error;
   }
 
   const totalAPedirNotif = estado.grupos?.pedido?.reduce((acc, m) => acc + (m.aPedir || 0), 0) || 0;
@@ -573,7 +573,7 @@ async function finalizarCalculo(gruposConfirmados) {
   } else {
     notificarExito(
       `El análisis se calculó correctamente, pero hubo un problema al guardarlo en Sheets: ${respGuardado.error}. Puedes intentar "Volver a guardar" más abajo.`,
-      { titulo: "Análisis completado con advertencia", icono: "⚠️", segundos: 6 }
+      { titulo: "Análisis completado con advertencia", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 }
     );
   }
 
@@ -581,7 +581,7 @@ async function finalizarCalculo(gruposConfirmados) {
 
   const btnAnalizar = document.getElementById("btn-analizar");
   btnAnalizar.disabled = false;
-  btnAnalizar.textContent = "🚀 Analizar";
+  btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
   estado.analizando = false;
 }
 
@@ -631,8 +631,11 @@ function mostrarResultados(resultado, sugerencias) {
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
         <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Materiales a pedir</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap">
-          <input type="text" id="na-buscar" placeholder="🔍 Buscar por código o descripción..."
-                 style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+          <div style="position:relative; display:inline-flex; align-items:center">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; font-size:12px; color:var(--texto-claro); pointer-events:none"></i>
+            <input type="text" id="na-buscar" placeholder="Buscar por código o descripción..."
+                   style="padding:8px 14px 8px 32px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+          </div>
         </div>
       </div>
       <div id="na-tabla-container"></div>
@@ -646,9 +649,9 @@ function mostrarResultados(resultado, sugerencias) {
       </p>
 
       <div class="btn-group">
-        <button id="btn-descargar-excel" class="btn-primario">📥 Descargar Excel (1 archivo, 5 pestañas)</button>
-        <button id="btn-guardar-analisis" class="btn-secundario">🔄 Volver a guardar</button>
-        <button id="btn-enviar-correo" class="btn-secundario">📧 Enviar por correo</button>
+        <button id="btn-descargar-excel" class="btn-primario"><i class="fa-solid fa-download"></i> Descargar Excel (1 archivo, 5 pestañas)</button>
+        <button id="btn-guardar-analisis" class="btn-secundario"><i class="fa-solid fa-arrows-rotate"></i> Volver a guardar</button>
+        <button id="btn-enviar-correo" class="btn-secundario"><i class="fa-solid fa-envelope"></i> Enviar por correo</button>
       </div>
       <p id="na-estado-acciones" class="estado-texto" style="margin-top:10px"></p>
     </div>
@@ -831,7 +834,7 @@ async function guardarAnalisisEnSheets() {
   if (resp.ok) {
     notificarExito("El análisis se volvió a guardar correctamente en Google Sheets.", { titulo: "Guardado" });
   } else {
-    notificarExito("No se pudo guardar: " + resp.error, { titulo: "Error", icono: "⚠️", segundos: 6 });
+    notificarExito("No se pudo guardar: " + resp.error, { titulo: "Error", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
   }
 }
 
@@ -866,7 +869,7 @@ async function enviarCorreo() {
   if (resp.ok) {
     notificarExito("El correo con el archivo Excel (Resumen + 5 pestañas) se envió correctamente al departamento de Abastecimiento.", { titulo: "Correo enviado" });
   } else {
-    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: "⚠️", segundos: 6 });
+    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
   }
 }
 
