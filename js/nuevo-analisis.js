@@ -1,7 +1,7 @@
 // js/nuevo-analisis.js
 import { parsearMHT } from "./mht-parser.js";
 import { procesarVentas } from "./ventas-parser.js";
-import { agruparStock } from "./stock-parser.js";
+import { agruparStock, procesarNotasPendientes } from "./stock-parser.js";
 import { cargarPaquetes } from "./paquetes.js";
 import { calcularAbastecimiento } from "./calculo-abastecimiento.js";
 import { detectarCandidatosLocal, confirmarConGemini, fusionarDuplicados } from "./deteccion-duplicados.js";
@@ -29,6 +29,10 @@ const COLUMNAS_STOCK = [
   "Bloqueado", "Devoluciones"
 ];
 
+const COLUMNAS_NOTAS_PENDIENTES = [
+  "Material", "Texto breve de material", "Centro receptor", "Entrega", "Fecha entrega", "Cant Ent"
+];
+
 // ============================================================
 //  ESTADO PERSISTENTE
 // ============================================================
@@ -36,6 +40,7 @@ let estado = {
   ventasProcesadas: null,
   stockTienda: null,
   stockKacosa: null,
+  notasPendientes: null, // nuevo: mapa codigo -> { cantidad, numeroNota, fechaNota }
   clustersCandidatos: [],
   gruposGemini: [],
   tiendaSeleccionada: null,
@@ -136,6 +141,21 @@ function render() {
         <div id="validacion-stock-kacosa" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
       </div>
 
+      <!-- Notas pendientes por despacho (opcional) -->
+      <div style="margin-top:16px">
+        <label class="form-label" for="na-notas-pendientes">Notas pendientes por despacho <span style="color:var(--texto-claro); font-weight:400">(opcional)</span></label>
+        <div class="file-input-wrapper" id="file-wrapper-notas-pendientes">
+          <span class="file-icon"><i class="fa-solid fa-file-invoice"></i></span>
+          <div class="file-info">
+            <div class="file-name" id="file-name-notas-pendientes">Seleccionar archivo</div>
+            <div class="file-hint">.MHT de SAP · Notas pendientes por despacho</div>
+          </div>
+          <span class="file-status empty" id="file-status-notas-pendientes">Sin usar</span>
+          <input type="file" id="na-notas-pendientes" accept=".mht,.MHT">
+        </div>
+        <div id="validacion-notas-pendientes" class="estado-texto" style="color:var(--verde-kpi); font-size:12px; margin-top:4px"></div>
+      </div>
+
       <!-- Pendientes por sincronizar (opcional) -->
       <div style="margin-top:16px">
         <label class="form-label" for="na-pendientes-sync">Materiales pendientes por sincronizar <span style="color:var(--texto-claro); font-weight:400">(opcional)</span></label>
@@ -195,6 +215,7 @@ function render() {
     { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas', validId: 'validacion-ventas', tipo: 'ventas' },
     { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda', validId: 'validacion-stock-tienda', tipo: 'stock' },
     { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa', validId: 'validacion-stock-kacosa', tipo: 'stock' },
+    { id: 'na-notas-pendientes', nameId: 'file-name-notas-pendientes', statusId: 'file-status-notas-pendientes', wrapperId: 'file-wrapper-notas-pendientes', validId: 'validacion-notas-pendientes', tipo: 'notas' },
     { id: 'na-pendientes-sync', nameId: 'file-name-pendientes-sync', statusId: 'file-status-pendientes-sync', wrapperId: 'file-wrapper-pendientes-sync', validId: null, tipo: null }
   ];
 
@@ -217,7 +238,12 @@ function render() {
             try {
               const texto = await input.files[0].text();
               const filas = parsearMHT(texto);
-              const columnasRequeridas = tipo === 'ventas' ? COLUMNAS_VENTAS : COLUMNAS_STOCK;
+              let columnasRequeridas;
+              if (tipo === 'ventas') columnasRequeridas = COLUMNAS_VENTAS;
+              else if (tipo === 'stock') columnasRequeridas = COLUMNAS_STOCK;
+              else if (tipo === 'notas') columnasRequeridas = COLUMNAS_NOTAS_PENDIENTES;
+              else columnasRequeridas = [];
+              
               const resultado = validarColumnasArchivo(filas, columnasRequeridas, tipo);
               validEl.innerHTML = resultado.mensaje;
               validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
@@ -284,7 +310,7 @@ function validarColumnasArchivo(filas, columnasRequeridas, tipo) {
     return { valido: true, mensaje: `<i class="fa-solid fa-circle-check"></i> Archivo válido: contiene todas las columnas requeridas (${columnasRequeridas.length})`, faltantes: [] };
   }
 
-  const nombreTipo = tipo === 'ventas' ? 'ventas' : 'stock';
+  const nombreTipo = tipo === 'ventas' ? 'ventas' : tipo === 'stock' ? 'stock' : 'notas pendientes';
   return {
     valido: false,
     mensaje: `<i class="fa-solid fa-triangle-exclamation"></i> El archivo de ${nombreTipo} no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`,
@@ -331,6 +357,7 @@ async function ejecutarAnalisis() {
   const archivoVentas = document.getElementById("na-ventas").files[0];
   const archivoStockTienda = document.getElementById("na-stock-tienda").files[0];
   const archivoStockKacosa = document.getElementById("na-stock-kacosa").files[0];
+  const archivoNotasPendientes = document.getElementById("na-notas-pendientes").files[0];
   const periodo = document.getElementById("na-periodo").value;
   const mesesCantidad = Number(document.getElementById("na-meses-cantidad").value) || 1;
   const margenPct = Number(document.getElementById("na-margen").value);
@@ -382,6 +409,19 @@ async function ejecutarAnalisis() {
     const stockTienda = agruparStock(filasStockTienda, centrosValidos);
     const stockKacosa = agruparStock(filasStockKacosa, CENTROS_KACOSA);
 
+    // Archivo opcional de notas pendientes por despacho
+    let notasPendientes = null;
+    if (archivoNotasPendientes) {
+      estadoTexto.textContent = "Procesando notas pendientes por despacho...";
+      const filasNotas = parsearMHT(await archivoNotasPendientes.text());
+      notasPendientes = procesarNotasPendientes(filasNotas, centrosValidos);
+      if (notasPendientes && Object.keys(notasPendientes).length > 0) {
+        estadoTexto.textContent = `Se encontraron ${Object.keys(notasPendientes).length} material(es) con notas pendientes por despacho.`;
+      } else {
+        estadoTexto.textContent = "No se encontraron notas pendientes para esta tienda.";
+      }
+    }
+
     // Archivo opcional de pendientes por sincronizar
     const archivoPendientesSync = document.getElementById("na-pendientes-sync").files[0];
     if (archivoPendientesSync) {
@@ -412,6 +452,7 @@ async function ejecutarAnalisis() {
     estado = {
       ...estado,
       ventasProcesadas, stockTienda, stockKacosa,
+      notasPendientes: notasPendientes || null,
       clustersCandidatos: clusters, gruposGemini,
       tiendaSeleccionada: tienda, periodo, mesesCantidad, margenPct,
       fechaAnalisis: new Date().toLocaleDateString("es-VE"),
@@ -497,6 +538,40 @@ async function finalizarCalculo(gruposConfirmados) {
     mesesCantidad: estado.mesesCantidad,
     margenPct: estado.margenPct
   });
+
+  // Aplicar ajuste por notas pendientes por despacho
+  if (estado.notasPendientes && Object.keys(estado.notasPendientes).length > 0) {
+    estadoTexto.textContent = "Aplicando ajuste por notas pendientes por despacho...";
+    resultado = resultado.map(m => {
+      const nota = estado.notasPendientes[m.codigo];
+      if (nota) {
+        const cantidadPendiente = nota.cantidad || 0;
+        // Restar del A_Pedir, sin bajar de 0
+        const aPedirAjustado = Math.max(0, (m.aPedir || 0) - cantidadPendiente);
+        return {
+          ...m,
+          aPedir: aPedirAjustado,
+          porDespacho: cantidadPendiente,
+          numeroDeNota: nota.numeroNota || '',
+          fechaDeNota: nota.fechaNota || ''
+        };
+      }
+      return {
+        ...m,
+        porDespacho: 0,
+        numeroDeNota: '',
+        fechaDeNota: ''
+      };
+    });
+  } else {
+    // Si no hay notas, agregar columnas vacías
+    resultado = resultado.map(m => ({
+      ...m,
+      porDespacho: 0,
+      numeroDeNota: '',
+      fechaDeNota: ''
+    }));
+  }
 
   estadoTexto.textContent = "Revisando base de alta rotación...";
   const respAltaRotacion = await callBridge("leerAltaRotacion", {});
@@ -669,7 +744,10 @@ function mostrarResultados(resultado, sugerencias) {
     { key: 'promedioVentasPeriodo', label: 'Promedio ventas periodo', numeric: true },
     { key: 'stockTienda', label: 'Stock tienda', numeric: true },
     { key: 'stockKacosa', label: 'Stock Kacosa', numeric: true },
-    { key: 'aPedir', label: 'A pedir', numeric: true }
+    { key: 'aPedir', label: 'A pedir', numeric: true },
+    { key: 'porDespacho', label: 'Por despacho', numeric: true },
+    { key: 'numeroDeNota', label: 'Número de nota' },
+    { key: 'fechaDeNota', label: 'Fecha de nota' }
   ];
 
   const container = document.getElementById('na-tabla-container');
@@ -764,7 +842,10 @@ function anexarAltaRotacionFaltante(resultado, stockTienda, stockKacosa, altaRot
       empaque,
       periodoVentas,
       periodoAbastecimiento,
-      rangoSeguridadUsado
+      rangoSeguridadUsado,
+      porDespacho: 0,
+      numeroDeNota: '',
+      fechaDeNota: ''
     });
     anexados.push(codigo);
   });
@@ -921,6 +1002,9 @@ function construirWorkbookCompleto() {
     { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
     { key: 'aPedir', label: 'A_Pedir', ancho: 10 },
+    { key: 'porDespacho', label: 'Por_Despacho', ancho: 12 },
+    { key: 'numeroDeNota', label: 'Numero_De_Nota', ancho: 14 },
+    { key: 'fechaDeNota', label: 'Fecha_De_Nota', ancho: 14 },
     { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
     { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
     { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
