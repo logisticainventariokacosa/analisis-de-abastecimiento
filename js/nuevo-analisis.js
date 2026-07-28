@@ -641,7 +641,7 @@ function mostrarResultados(resultado, sugerencias) {
       <div id="na-tabla-container"></div>
 
       <p class="vista-sub" style="margin-top:16px">
-        Los 5 archivos descargables incluyen: (1) ${grupos.pedido.length} material(es) a pedir,
+        El archivo descargable incluye: (1) ${grupos.pedido.length} material(es) a pedir,
         (2) ${grupos.noPedido.length} que no ameritaron pedido,
         (3) ${grupos.pendienteStock.length} con pedido pendiente por falta de stock en Kacosa,
         (4) ${grupos.sugerencias.length} sugerencia(s),
