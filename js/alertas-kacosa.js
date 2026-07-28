@@ -350,10 +350,12 @@ function mostrarAlertas(alertas) {
     resultado.innerHTML = `
       <div class="kpi-grid">
         <div class="kpi-card rojo">
+          <div class="kpi-icono"><i class="fa-solid fa-triangle-exclamation"></i></div>
           <div class="label">Sin stock en Kacosa</div>
           <div class="valor">${sinStock.length}</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card ambar">
+          <div class="kpi-icono"><i class="fa-solid fa-boxes-stacked"></i></div>
           <div class="label">Stock insuficiente</div>
           <div class="valor">${stockBajo.length}</div>
         </div>
