@@ -31,14 +31,14 @@ function render() {
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
-        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px">⚠️</span>
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px"><i class="fa-solid fa-triangle-exclamation"></i></span>
         Analizar stock de Kacosa
       </h3>
 
       <div style="margin-top:4px">
         <label class="form-label" for="input-stock-kacosa">Archivo de stock de Kacosa <span class="required">*</span></label>
         <div class="file-input-wrapper" id="file-wrapper-kacosa">
-          <span class="file-icon">🏢</span>
+          <span class="file-icon"><i class="fa-solid fa-building"></i></span>
           <div class="file-info">
             <div class="file-name" id="file-name-kacosa">Seleccionar archivo</div>
             <div class="file-hint">.MHT de SAP · Stock Kacosa</div>
@@ -59,7 +59,7 @@ function render() {
       </div>
 
       <button id="btn-analizar-kacosa" class="btn-primario" style="margin-top:16px; min-width:200px" disabled>
-        📊 Analizar stock
+        <i class="fa-solid fa-chart-column"></i> Analizar stock
       </button>
       <p id="estado-alertas" class="estado-texto" style="margin-top:12px"></p>
     </div>
@@ -138,7 +138,7 @@ function setupFileInput() {
       const file = input.files[0];
       if (nameEl) nameEl.textContent = file.name;
       if (statusEl) {
-        statusEl.textContent = '✓ Cargado';
+        statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Cargado';
         statusEl.className = 'file-status loaded';
       }
       if (wrapper) wrapper.classList.add('loaded');
@@ -149,7 +149,7 @@ function setupFileInput() {
         const resultado = validarArchivoStock(filas);
         
         if (validEl) {
-          validEl.textContent = resultado.mensaje;
+          validEl.innerHTML = resultado.mensaje;
           validEl.style.color = resultado.valido ? 'var(--verde-kpi)' : 'var(--rojo-alerta)';
         }
         
@@ -164,7 +164,7 @@ function setupFileInput() {
         }
       } catch (err) {
         if (validEl) {
-          validEl.textContent = '⚠️ Error al leer el archivo: ' + err.message;
+          validEl.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Error al leer el archivo: ' + err.message;
           validEl.style.color = 'var(--rojo-alerta)';
         }
         archivoValido = false;
@@ -178,7 +178,7 @@ function setupFileInput() {
         statusEl.className = 'file-status empty';
       }
       if (wrapper) wrapper.classList.remove('loaded');
-      if (validEl) validEl.textContent = '';
+      if (validEl) validEl.innerHTML = '';
       archivoValido = false;
       filasCache = null;
       if (btnAnalizar) btnAnalizar.disabled = true;
@@ -188,7 +188,7 @@ function setupFileInput() {
 
 function validarArchivoStock(filas) {
   if (filas.length === 0) {
-    return { valido: false, mensaje: '⚠️ El archivo está vacío o no tiene datos' };
+    return { valido: false, mensaje: '<i class="fa-solid fa-triangle-exclamation"></i> El archivo está vacío o no tiene datos' };
   }
 
   const columnasExistentes = Object.keys(filas[0]);
@@ -197,7 +197,7 @@ function validarArchivoStock(filas) {
   if (faltantes.length > 0) {
     return { 
       valido: false, 
-      mensaje: `⚠️ El archivo no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`
+      mensaje: `<i class="fa-solid fa-triangle-exclamation"></i> El archivo no tiene las columnas correctas. Faltan: ${faltantes.join(', ')}`
     };
   }
 
@@ -212,17 +212,17 @@ function validarArchivoStock(filas) {
   if (centrosInvalidos.length > 0) {
     return {
       valido: false,
-      mensaje: `⚠️ El archivo contiene centro(s) que no pertenecen a Kacosa (${centrosInvalidos.join(", ")}). Kacosa solo puede ser 1000 y/o 3000.`
+      mensaje: `<i class="fa-solid fa-triangle-exclamation"></i> El archivo contiene centro(s) que no pertenecen a Kacosa (${centrosInvalidos.join(", ")}). Kacosa solo puede ser 1000 y/o 3000.`
     };
   }
 
   if (centros.size === 0) {
-    return { valido: false, mensaje: '⚠️ El archivo no tiene datos de Centro reconocibles.' };
+    return { valido: false, mensaje: '<i class="fa-solid fa-triangle-exclamation"></i> El archivo no tiene datos de Centro reconocibles.' };
   }
 
   return { 
     valido: true, 
-    mensaje: `✅ Archivo válido: contiene todas las columnas requeridas y solo centros Kacosa (${[...centros].join(", ")})`
+    mensaje: `<i class="fa-solid fa-circle-check"></i> Archivo válido: contiene todas las columnas requeridas y solo centros Kacosa (${[...centros].join(", ")})`
   };
 }
 
@@ -232,7 +232,7 @@ async function procesarArchivo() {
   if (resultado) resultado.innerHTML = "";
 
   if (!archivoValido || !filasCache) {
-    if (estado) estado.textContent = "⚠️ El archivo no es válido. Verifica que tenga las columnas correctas y solo centros 1000/3000.";
+    if (estado) estado.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> El archivo no es válido. Verifica que tenga las columnas correctas y solo centros 1000/3000.';
     return;
   }
 
@@ -240,7 +240,7 @@ async function procesarArchivo() {
     const btnAnalizar = document.getElementById("btn-analizar-kacosa");
     if (btnAnalizar) {
       btnAnalizar.disabled = true;
-      btnAnalizar.textContent = "⏳ Analizando...";
+      btnAnalizar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando...';
     }
     if (estado) estado.textContent = "Procesando archivo...";
 
@@ -260,7 +260,7 @@ async function procesarArchivo() {
       if (estado) estado.textContent = "Error: " + resp.error;
       if (btnAnalizar) {
         btnAnalizar.disabled = false;
-        btnAnalizar.textContent = "📊 Analizar stock";
+        btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
       }
       return;
     }
@@ -270,7 +270,7 @@ async function procesarArchivo() {
 
     if (btnAnalizar) {
       btnAnalizar.disabled = false;
-      btnAnalizar.textContent = "📊 Analizar stock";
+      btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
     }
 
   } catch (err) {
@@ -279,7 +279,7 @@ async function procesarArchivo() {
     const btnAnalizar = document.getElementById("btn-analizar-kacosa");
     if (btnAnalizar) {
       btnAnalizar.disabled = false;
-      btnAnalizar.textContent = "📊 Analizar stock";
+      btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
     }
   }
 }
@@ -325,7 +325,7 @@ function mostrarAlertas(alertas) {
   const resultado = document.getElementById("resultado-alertas");
 
   if (alertas.length === 0) {
-    if (resultado) resultado.innerHTML = `<div class="card"><p class="vista-sub" style="margin:0">No hay alertas — todo el stock de alta rotación está cubierto. 🎉</p></div>`;
+    if (resultado) resultado.innerHTML = `<div class="card"><p class="vista-sub" style="margin:0">No hay alertas — todo el stock de alta rotación está cubierto. <i class="fa-solid fa-circle-check"></i></p></div>`;
     return;
   }
 
@@ -362,13 +362,16 @@ function mostrarAlertas(alertas) {
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
           <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Lista de alertas</h3>
           <div style="display:flex; gap:10px; flex-wrap:wrap">
-            <input type="text" id="alertas-buscar" placeholder="🔍 Buscar por código o descripción..." 
-                   style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+            <div style="position:relative; display:inline-flex; align-items:center">
+              <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; font-size:12px; color:var(--texto-claro); pointer-events:none"></i>
+              <input type="text" id="alertas-buscar" placeholder="Buscar por código o descripción..." 
+                     style="padding:8px 14px 8px 32px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+            </div>
             <button id="btn-descargar-alertas" class="btn-primario" style="padding:8px 16px; font-size:12px; margin:0">
-              📥 Descargar Excel
+              <i class="fa-solid fa-download"></i> Descargar Excel
             </button>
             <button id="btn-enviar-correo-alertas" class="btn-secundario" style="padding:8px 16px; font-size:12px; margin:0">
-              📧 Enviar por correo
+              <i class="fa-solid fa-envelope"></i> Enviar por correo
             </button>
           </div>
         </div>
@@ -437,7 +440,7 @@ function mostrarAlertas(alertas) {
           const td = row.querySelector('td:last-child');
           if (td) {
             const btn = document.createElement('button');
-            btn.textContent = '📊 Ver distribución';
+            btn.innerHTML = '<i class="fa-solid fa-chart-column"></i> Ver distribución';
             btn.style.cssText = 'padding:4px 12px; border:none; border-radius:4px; background:var(--azul-base); color:#fff; cursor:pointer; font-size:11px';
             btn.addEventListener('click', () => mostrarDistribucion(alerta));
             td.appendChild(btn);
@@ -466,7 +469,7 @@ function mostrarDistribucion(alerta) {
 
   modal.innerHTML = `
     <div style="background:var(--blanco); border-radius:var(--radio); max-width:520px; width:100%; max-height:90vh; overflow-y:auto; padding:24px; box-shadow:0 20px 60px rgba(0,0,0,0.3)">
-      <h3 style="margin:0 0 12px; color:var(--azul-base)">📊 Distribución sugerida por tienda</h3>
+      <h3 style="margin:0 0 12px; color:var(--azul-base)"><i class="fa-solid fa-chart-column"></i> Distribución sugerida por tienda</h3>
       <p style="font-size:13px; color:var(--texto-secundario); margin-bottom:18px">
         <strong>${alerta.codigo}</strong> — ${alerta.descripcion}<br>
         Total a distribuir: <strong style="color:var(--azul-base)">${alerta.proyeccionCompra}</strong> unidades (empaque de ${alerta.empaque})
@@ -609,7 +612,7 @@ async function enviarCorreoAlertas(alertas) {
   if (resp.ok) {
     notificarExito("El correo con las Alertas Kacosa se envió correctamente a Compras Nacionales.", { titulo: "Correo enviado" });
   } else {
-    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: "⚠️", segundos: 6 });
+    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
   }
 }
 
