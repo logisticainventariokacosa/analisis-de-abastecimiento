@@ -49,10 +49,30 @@
 
       <div id="mensaje-error"></div>
 
-      <p class="login-nota">
-        <i class="fa-solid fa-lock" style="color:var(--ambar); margin-right:8px;"></i>
-        Acceso exclusivo para usuarios autorizados por un administrador.
+      <!-- BOTÓN DE RESTRICCIÓN - Estilo elegante -->
+      <button type="button" class="btn-restriccion" id="btn-restriccion">
+        <i class="fa-solid fa-shield-halved"></i>
+        <span>Acceso restringido</span>
+        <i class="fa-solid fa-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- MODAL DE RESTRICCIÓN -->
+  <div class="modal-overlay" id="modal-restriccion">
+    <div class="modal-container">
+      <div class="modal-icono">
+        <i class="fa-solid fa-shield-halved"></i>
+      </div>
+      <h2 class="modal-titulo">Acceso restringido</h2>
+      <p class="modal-mensaje">
+        Este sistema está diseñado exclusivamente para <strong>personal autorizado</strong> de KACOSA.
+        <br><br>
+        Si necesitas acceso, contacta a tu <strong>administrador</strong> para solicitar tus credenciales.
       </p>
+      <div class="modal-botones">
+        <button class="modal-btn-primario" id="modal-aceptar">Entendido</button>
+      </div>
     </div>
   </div>
 
@@ -72,6 +92,57 @@
           icon.className = isPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
         });
       }
+    });
+
+    // =========================================================
+    //  MODAL DE RESTRICCIÓN
+    // =========================================================
+    document.addEventListener('DOMContentLoaded', function() {
+      const btnRestriccion = document.getElementById('btn-restriccion');
+      const modal = document.getElementById('modal-restriccion');
+      const btnAceptar = document.getElementById('modal-aceptar');
+      let temporizador = null;
+
+      function abrirModal() {
+        modal.classList.add('visible');
+        // Auto-cierre después de 5 segundos
+        if (temporizador) clearTimeout(temporizador);
+        temporizador = setTimeout(cerrarModal, 5000);
+      }
+
+      function cerrarModal() {
+        modal.classList.remove('visible');
+        if (temporizador) {
+          clearTimeout(temporizador);
+          temporizador = null;
+        }
+      }
+
+      // Abrir al hacer clic en el botón
+      if (btnRestriccion) {
+        btnRestriccion.addEventListener('click', abrirModal);
+      }
+
+      // Cerrar con el botón "Entendido"
+      if (btnAceptar) {
+        btnAceptar.addEventListener('click', cerrarModal);
+      }
+
+      // Cerrar al hacer clic fuera del modal
+      if (modal) {
+        modal.addEventListener('click', function(e) {
+          if (e.target === modal) {
+            cerrarModal();
+          }
+        });
+      }
+
+      // Cerrar con tecla ESC
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal && modal.classList.contains('visible')) {
+          cerrarModal();
+        }
+      });
     });
   </script>
 </body>
