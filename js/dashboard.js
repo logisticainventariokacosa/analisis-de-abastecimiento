@@ -128,18 +128,13 @@ function mostrarDashboard(analisis) {
   const resultadoDiv = document.getElementById("dash-resultado");
   materialesCache = analisis.materiales;
 
-  // Se expone el análisis del Dashboard globalmente para que el chat con
-  // Gemini pueda usarlo como contexto adicional (ver js/chat.js).
   window.KACOSA = window.KACOSA || {};
   window.KACOSA.ultimoDashboardAnalisis = analisis;
   
   const totalMaterialesAPedir = materialesCache.filter(m => m.aPedir > 0).length;
   const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + m.aPedir, 0);
   
-  // ============================================================
-  //  NUEVAS MÉTRICAS
-  // ============================================================
-  // 1. Material con mayor venta
+  // Material con mayor venta
   let materialMayorVenta = null;
   let maxVentas = 0;
   materialesCache.forEach(m => {
@@ -149,7 +144,7 @@ function mostrarDashboard(analisis) {
     }
   });
 
-  // 2. Total de materiales con ventas (> 0)
+  // Total de materiales con ventas (> 0)
   const totalMaterialesConVentas = materialesCache.filter(m => m.totalVentas > 0).length;
 
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
@@ -179,17 +174,17 @@ function mostrarDashboard(analisis) {
         <div class="label">Clase A / B / C / D</div>
         <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
       </div>
-      <!-- Tarjeta 4: Materiales con ventas -->
-      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
-        <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35);">
+      <!-- Tarjeta 4: Materiales con ventas (AZUL) -->
+      <div class="kpi-card azul" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
+        <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35); color:#fff;">
           <i class="fa-solid fa-chart-simple"></i>
         </div>
         <div class="label">Materiales con ventas</div>
         <div class="valor">${totalMaterialesConVentas}</div>
       </div>
-      <!-- Tarjeta 5: Material con mayor venta (ÚLTIMA) -->
-      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #F0E6F6 130%);">
-        <div class="kpi-icono" style="background: linear-gradient(135deg, #8B6BAE, #6B4A8A); box-shadow: 0 4px 12px rgba(107, 74, 138, 0.35);">
+      <!-- Tarjeta 5: Material con mayor venta (PÚRPURA, ÚLTIMA) -->
+      <div class="kpi-card purpura" style="background: linear-gradient(135deg, var(--blanco) 55%, #F0E6F6 130%);">
+        <div class="kpi-icono" style="background: linear-gradient(135deg, #8B6BAE, #6B4A8A); box-shadow: 0 4px 12px rgba(107, 74, 138, 0.35); color:#fff;">
           <i class="fa-solid fa-trophy"></i>
         </div>
         <div class="label">Material con mayor venta</div>
@@ -268,7 +263,6 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     return;
   }
 
-  // Asegurar valores numéricos
   const materiales = materialesOriginal.map(m => {
     const aPedir = Number(m.aPedir) || 0;
     const stockKacosa = Number(m.stockKacosa) || 0;
@@ -286,7 +280,6 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
 
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
-  // Clasificar
   const pedido = materiales.filter(m => m.aPedir > 0);
   const noPedido = materiales.filter(m => m.aPedir === 0);
 
@@ -300,7 +293,6 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
 
   const wb = XLSX.utils.book_new();
 
-  // --- Hoja Resumen ---
   const wsResumen = construirHojaResumen(
     `Dashboard — ${nombrePorId(analisis.tienda)}`,
     [
@@ -321,7 +313,6 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-  // --- Columnas completas (INCLUYE las 3 nuevas columnas) ---
   const columnasCompletas = [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
@@ -341,13 +332,11 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     { key: 'fechaAnalisis', label: 'Fecha_Analisis', ancho: 14 }
   ];
 
-  // --- A_Pedir ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pedido, columnasCompletas, {
     colorearPorClase: true,
     columnasDestacadas: [{ key: 'aPedir', color: 'FFC4432B' }]
   }), "A_Pedir");
 
-  // --- No_Amerito_Pedido ---
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasCompletas, {
     colorearPorClase: true
   }), "No_Amerito_Pedido");
