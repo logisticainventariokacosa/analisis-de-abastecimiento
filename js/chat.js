@@ -8,7 +8,7 @@ let abierto = false;
 function construirUI() {
   const boton = document.createElement("button");
   boton.id = "chat-boton-flotante";
-  boton.innerHTML = '<i class="fa-solid fa-comment-dots"></i>';
+  boton.innerHTML = '<i class="fa-solid fa-robot"></i>';
   boton.title = "Hablar con el agente de abastecimiento";
   document.body.appendChild(boton);
 
