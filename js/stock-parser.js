@@ -39,3 +39,49 @@ export function agruparStock(filas, centrosFiltro) {
 
   return mapa;
 }
+
+/**
+ * Procesa un archivo de notas pendientes por despacho y devuelve un mapa
+ * codigo -> { cantidad, numeroNota, fechaNota } para los materiales
+ * cuyo Centro receptor coincida con los centros de la tienda.
+ *
+ * @param {Array<Object>} filas - salida de parsearMHT()
+ * @param {Array<string>} centrosFiltro - centros de la tienda
+ * @returns {Object} codigo -> { cantidad, numeroNota, fechaNota }
+ */
+export function procesarNotasPendientes(filas, centrosFiltro) {
+  const mapa = {};
+
+  filas.forEach(f => {
+    const centroReceptor = String(f["Centro receptor"] || "").trim();
+    if (!centrosFiltro.includes(centroReceptor)) return;
+
+    const codigo = String(f["Material"] || "").trim();
+    if (!codigo) return;
+
+    const cantidad = aNumero(f["Cant Ent"] || 0);
+    if (cantidad <= 0) return;
+
+    const numeroNota = String(f["Entrega"] || "").trim();
+    const fechaNota = String(f["Fecha entrega"] || "").trim();
+
+    if (!mapa[codigo]) {
+      mapa[codigo] = { cantidad: 0, numeroNota: numeroNota, fechaNota: fechaNota };
+    }
+
+    // Sumar cantidad, acumular notas y fechas (separadas por coma)
+    mapa[codigo].cantidad += cantidad;
+    if (numeroNota && !mapa[codigo].numeroNota.includes(numeroNota)) {
+      mapa[codigo].numeroNota = mapa[codigo].numeroNota 
+        ? mapa[codigo].numeroNota + ", " + numeroNota 
+        : numeroNota;
+    }
+    if (fechaNota && !mapa[codigo].fechaNota.includes(fechaNota)) {
+      mapa[codigo].fechaNota = mapa[codigo].fechaNota 
+        ? mapa[codigo].fechaNota + ", " + fechaNota 
+        : fechaNota;
+    }
+  });
+
+  return mapa;
+}
