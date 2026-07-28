@@ -14,7 +14,8 @@ export const CODIGOS_EXCLUIDOS = [
   "1000023512",
   "3000000013",
   "449",
-  "3000000439"
+  "3000000439",
+  "715"
 ];
 
 const SET_EXCLUIDOS = new Set(CODIGOS_EXCLUIDOS.map(c => String(c).trim()));
