@@ -25,7 +25,12 @@
         <input type="email" id="login-email" placeholder="tu@correo.com" maxlength="50" required>
 
         <label for="login-password"><i class="fa-solid fa-lock"></i> Contraseña</label>
-        <input type="password" id="login-password" placeholder="••••••••" maxlength="20" required>
+        <div class="input-group">
+          <input type="password" id="login-password" placeholder="••••••••" maxlength="20" required>
+          <button type="button" class="toggle-password" id="toggle-password" aria-label="Mostrar u ocultar contraseña">
+            <i class="fa-regular fa-eye" id="password-icon"></i>
+          </button>
+        </div>
 
         <button type="submit" class="btn-primario">Iniciar sesión</button>
       </form>
@@ -44,13 +49,35 @@
 
       <div id="mensaje-error"></div>
 
-      <p class="login-nota">
-        <i class="fa-solid fa-lock"></i> El acceso es exclusivo para usuarios previamente autorizados
-        por un administrador, ya sea con correo y contraseña asignados o con su cuenta de Google.
-      </p>
+      <!-- MENSAJE DE RESTRICCIÓN MEJORADO -->
+      <div class="login-nota">
+        <span class="nota-icono"><i class="fa-solid fa-shield-halved"></i></span>
+        <span class="nota-texto">
+          <strong>Acceso restringido</strong><br>
+          Solo usuarios <span class="highlight">previamente autorizados</span> por un administrador pueden ingresar,
+          ya sea con sus credenciales o con <span class="highlight">Google</span>.
+        </span>
+      </div>
     </div>
   </div>
 
   <script type="module" src="js/auth.js"></script>
+
+  <script>
+    // Toggle password (ojito para mostrar/ocultar contraseña)
+    document.addEventListener('DOMContentLoaded', function() {
+      const toggleBtn = document.getElementById('toggle-password');
+      const passwordInput = document.getElementById('login-password');
+      const icon = document.getElementById('password-icon');
+
+      if (toggleBtn && passwordInput && icon) {
+        toggleBtn.addEventListener('click', function() {
+          const isPassword = passwordInput.getAttribute('type') === 'password';
+          passwordInput.setAttribute('type', isPassword ? 'text' : 'password');
+          icon.className = isPassword ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye';
+        });
+      }
+    });
+  </script>
 </body>
 </html>
