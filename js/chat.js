@@ -17,9 +17,12 @@ function construirUI() {
   panel.className = "oculto";
   panel.innerHTML = `
     <div class="chat-header">
-      <div>
-        <div class="chat-titulo">Agente de Abastecimiento</div>
-        <div class="chat-subtitulo" id="chat-contexto-info">Sin análisis cargado aún</div>
+      <div class="chat-header-info">
+        <div class="chat-header-icono"><i class="fa-solid fa-robot"></i></div>
+        <div>
+          <div class="chat-titulo">Agente de Abastecimiento</div>
+          <div class="chat-subtitulo" id="chat-contexto-info">Hola</div>
+        </div>
       </div>
       <button id="chat-cerrar" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -49,25 +52,11 @@ function alternarPanel(mostrar) {
 
 function actualizarContextoInfo() {
   const info = document.getElementById("chat-contexto-info");
-  const analisis = window.KACOSA?.ultimoAnalisis;
-  const alertasKacosa = window.KACOSA?.ultimasAlertasKacosa || [];
-  const dashboardAnalisis = window.KACOSA?.ultimoDashboardAnalisis;
-  const misTiendas = window.KACOSA?.tiendas || [];
+  const usuario = window.KACOSA?.usuario;
+  const nombreCompleto = usuario?.nombre || usuario?.displayName || usuario?.email || "";
+  const primerNombre = nombreCompleto ? nombreCompleto.trim().split(" ")[0] : "";
 
-  const fuentes = [];
-  if (analisis) fuentes.push(`Nuevo Análisis (${nombrePorId(analisis.tienda)} · ${analisis.fechaAnalisis})`);
-  if (alertasKacosa.length > 0) fuentes.push(`Alertas Kacosa (${alertasKacosa.length})`);
-  if (dashboardAnalisis) fuentes.push(`Dashboard (${nombrePorId(dashboardAnalisis.tienda)})`);
-
-  if (fuentes.length > 0) {
-    info.textContent = fuentes.join(" · ");
-  } else if (misTiendas.includes("TODAS")) {
-    info.textContent = "Acceso a todas las tiendas";
-  } else if (misTiendas.length > 0) {
-    info.textContent = `Acceso: ${misTiendas.map(id => nombrePorId(id)).join(", ")}`;
-  } else {
-    info.textContent = "Sin análisis cargado aún";
-  }
+  info.textContent = primerNombre ? `Hola, ${primerNombre}` : "Hola";
 }
 
 function agregarMensaje(texto, rol) {
