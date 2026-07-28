@@ -1368,3 +1368,30 @@ tbody tr:hover {
     padding: 8px !important;
   }
 }
+/* =========================================================
+ *  DASHBOARD - Nuevas tarjetas con barras laterales
+ * ========================================================= */
+
+/* Tarjeta Azul (Materiales con ventas) */
+.kpi-card.azul::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #4A6FA5, #2A4A7A);
+  border-radius: 0 2px 2px 0;
+}
+
+/* Tarjeta Púrpura (Material con mayor venta) */
+.kpi-card.purpura::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: linear-gradient(180deg, #8B6BAE, #6B4A8A);
+  border-radius: 0 2px 2px 0;
+}
