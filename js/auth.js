@@ -1,7 +1,6 @@
 import { auth, db, googleProvider } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
@@ -50,42 +49,6 @@ if (formLogin) {
     } catch (err) {
       ocultarLoader();
       mostrarError("Correo o contraseña incorrectos.");
-    }
-  });
-}
-
-// --- Registro ---
-const formRegistro = document.getElementById("form-registro");
-if (formRegistro) {
-  formRegistro.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("reg-email").value.trim();
-    const pass = document.getElementById("reg-password").value;
-    const pass2 = document.getElementById("reg-password2").value;
-
-    if (pass !== pass2) {
-      mostrarError("Las contraseñas no coinciden.");
-      return;
-    }
-
-    mostrarLoader("Verificando correo autorizado...");
-    const autorizado = await correoAutorizado(email);
-    if (!autorizado) {
-      ocultarLoader();
-      mostrarError("Este correo no está autorizado para registrarse.");
-      return;
-    }
-
-    try {
-      mostrarLoader("Creando cuenta...");
-      await createUserWithEmailAndPassword(auth, email, pass);
-      mostrarLoader("Entrando...");
-      window.location.href = "app.html";
-    } catch (err) {
-      ocultarLoader();
-      mostrarError(err.code === "auth/email-already-in-use"
-        ? "Ese correo ya tiene una cuenta. Inicia sesión."
-        : "No se pudo crear la cuenta. Verifica los datos.");
     }
   });
 }
