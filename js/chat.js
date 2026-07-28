@@ -8,7 +8,7 @@ let abierto = false;
 function construirUI() {
   const boton = document.createElement("button");
   boton.id = "chat-boton-flotante";
-  boton.innerHTML = "💬";
+  boton.innerHTML = '<i class="fa-solid fa-comment-dots"></i>';
   boton.title = "Hablar con el agente de abastecimiento";
   document.body.appendChild(boton);
 
@@ -21,7 +21,7 @@ function construirUI() {
         <div class="chat-titulo">Agente de Abastecimiento</div>
         <div class="chat-subtitulo" id="chat-contexto-info">Sin análisis cargado aún</div>
       </div>
-      <button id="chat-cerrar" aria-label="Cerrar">✕</button>
+      <button id="chat-cerrar" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
     </div>
     <div class="chat-mensajes" id="chat-mensajes">
       <div class="chat-msg chat-msg-agente">
@@ -30,7 +30,7 @@ function construirUI() {
     </div>
     <form id="chat-form" class="chat-form">
       <input type="text" id="chat-input" placeholder="Escribe tu pregunta..." autocomplete="off">
-      <button type="submit">➤</button>
+      <button type="submit"><i class="fa-solid fa-paper-plane"></i></button>
     </form>
   `;
   document.body.appendChild(panel);
