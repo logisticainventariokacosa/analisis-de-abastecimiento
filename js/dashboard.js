@@ -38,7 +38,7 @@ async function render() {
   cont.innerHTML = `
     ${tieneVariasTiendas ? `
       <div class="tienda-selector">
-        <span class="label">🏷️ Tienda</span>
+        <span class="label"><i class="fa-solid fa-store"></i> Tienda</span>
         <select id="dash-tienda">
           ${opcionesTienda}
         </select>
@@ -158,10 +158,13 @@ function mostrarDashboard(analisis) {
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; margin-bottom:16px">
         <h3 style="margin:0; font-size:14px; color:var(--azul-base)">Materiales a pedir (${totalMaterialesAPedir})</h3>
         <div style="display:flex; gap:10px; flex-wrap:wrap">
-          <input type="text" id="dash-buscar" placeholder="🔍 Buscar por código o descripción..." 
-                 style="padding:8px 14px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+          <div style="position:relative; display:inline-flex; align-items:center">
+            <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; font-size:12px; color:var(--texto-claro); pointer-events:none"></i>
+            <input type="text" id="dash-buscar" placeholder="Buscar por código o descripción..." 
+                   style="padding:8px 14px 8px 32px; border:1.5px solid var(--borde); border-radius:var(--radio-peq); font-size:13px; min-width:200px">
+          </div>
           <button id="dash-descargar" class="btn-primario" style="padding:8px 16px; font-size:12px; margin:0">
-            📥 Descargar Excel
+            <i class="fa-solid fa-download"></i> Descargar Excel
           </button>
         </div>
       </div>
