@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="css/styles.css" />
   <link rel="stylesheet" href="css/app.css" />
   <link rel="stylesheet" href="css/loader.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
 
   <!-- favicon / manifest -->
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
@@ -26,12 +27,12 @@
 
   <!-- HEADER -->
   <header class="app-header" id="app-header">
-    <button id="btn-hamburguesa" type="button" aria-label="Abrir menú">☰</button>
+    <button id="btn-hamburguesa" type="button" aria-label="Abrir menú"><i class="fa-solid fa-bars"></i></button>
     <div class="brand-icon">
       <div class="barra"></div>
       <h2>KACOSA <span>·</span> Abastecimiento</h2>
     </div>
-    <button id="btn-user-avatar" type="button" class="user-avatar" aria-label="Cuenta de usuario">👤</button>
+    <button id="btn-user-avatar" type="button" class="user-avatar" aria-label="Cuenta de usuario"><i class="fa-solid fa-user"></i></button>
   </header>
 
   <!-- SIDEBAR: menú desplegable con usuario y cerrar sesión al final -->
@@ -39,27 +40,27 @@
     <!-- Navegación principal (ocupa el espacio disponible) -->
     <nav aria-label="Navegación principal">
       <button type="button" class="nav-item activo" data-vista="vista-dashboard">
-        <span class="icono">📊</span> Dashboard
+        <span class="icono"><i class="fa-solid fa-gauge-high"></i></span> Dashboard
       </button>
       <button type="button" class="nav-item" data-vista="vista-nuevo-analisis">
-        <span class="icono">📥</span> Nuevo Análisis
+        <span class="icono"><i class="fa-solid fa-file-arrow-up"></i></span> Nuevo Análisis
       </button>
       <button type="button" class="nav-item" data-vista="vista-alertas-kacosa">
-        <span class="icono">⚠️</span> Alertas Kacosa
+        <span class="icono"><i class="fa-solid fa-triangle-exclamation"></i></span> Alertas Kacosa
       </button>
     </nav>
 
-    <!-- 👇 SECCIÓN DE USUARIO AL FINAL DEL SIDEBAR (sin espacio extra) -->
+    <!-- SECCIÓN DE USUARIO AL FINAL DEL SIDEBAR (sin espacio extra) -->
     <div class="sidebar-footer">
       <div class="sidebar-user">
-        <div class="sidebar-user-avatar">👤</div>
+        <div class="sidebar-user-avatar"><i class="fa-solid fa-user"></i></div>
         <div class="sidebar-user-info">
           <div id="sidebar-user-nombre" class="sidebar-user-nombre">Usuario</div>
           <div id="sidebar-user-email" class="sidebar-user-email">correo@ejemplo.com</div>
         </div>
       </div>
       <button id="btn-sidebar-cerrar-sesion" class="sidebar-btn-cerrar">
-        🚪 Cerrar sesión
+        <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
       </button>
     </div>
   </aside>
@@ -67,7 +68,7 @@
   <!-- MODAL DE USUARIO -->
   <div class="overlay-modal" id="overlay-user-modal">
     <div class="user-modal">
-      <div class="user-modal-avatar">👤</div>
+      <div class="user-modal-avatar"><i class="fa-solid fa-user"></i></div>
       <div class="user-modal-nombre" id="user-modal-nombre">Usuario</div>
       <div class="user-modal-correo" id="user-modal-correo">correo@ejemplo.com</div>
       <div class="user-modal-botones">
