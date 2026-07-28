@@ -30,7 +30,7 @@ const COLUMNAS_STOCK = [
 ];
 
 const COLUMNAS_NOTAS_PENDIENTES = [
-  "Material", "Texto breve de material", "Centro receptor", "Entrega", "Fecha entrega", "Cant Ent"
+  "Material", "Texto breve", "Centro Receptor", "Entrega", "Fec. Entrega", "Cant Entrega"
 ];
 
 // ============================================================
