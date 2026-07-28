@@ -177,7 +177,7 @@ function mostrarDashboard(analisis) {
       <!-- Tarjeta 4: Materiales con ventas (AZUL) -->
       <div class="kpi-card azul" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
         <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35); color:#fff;">
-           <i class="fa-solid fa-chart-line"></i>
+           <i class="fa-solid fa-coins"></i>
         </div>
         <div class="label">Materiales con ventas</div>
         <div class="valor">${totalMaterialesConVentas}</div>
