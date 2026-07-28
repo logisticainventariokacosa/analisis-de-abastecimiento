@@ -9,14 +9,14 @@ let temporizadorActivo = null;
  * @param {string} mensaje - texto principal
  * @param {Object} opciones
  *   - titulo: string (default "¡Listo!")
- *   - icono: string emoji (default "✅")
+ *   - icono: string HTML del icono (default check de Font Awesome)
  *   - segundos: tiempo antes de auto-cerrar (default 4)
  */
 export function notificarExito(mensaje, opciones = {}) {
   cerrarNotificacion(); // por si había una abierta
 
   const titulo = opciones.titulo || "¡Listo!";
-  const icono = opciones.icono || "✅";
+  const icono = opciones.icono || '<i class="fa-solid fa-circle-check"></i>';
   const segundos = opciones.segundos ?? 4;
 
   const overlay = document.createElement("div");
