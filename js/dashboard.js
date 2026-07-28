@@ -142,14 +142,17 @@ function mostrarDashboard(analisis) {
     <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${analisis.fechaAnalisis || "—"}</strong></p>
     <div class="kpi-grid">
       <div class="kpi-card verde">
+        <div class="kpi-icono"><i class="fa-solid fa-box-open"></i></div>
         <div class="label">Materiales a pedir</div>
         <div class="valor">${totalMaterialesAPedir}</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card ambar">
+        <div class="kpi-icono"><i class="fa-solid fa-cart-shopping"></i></div>
         <div class="label">Unidades a pedir</div>
         <div class="valor">${totalUnidadesAPedir}</div>
       </div>
-      <div class="kpi-card">
+      <div class="kpi-card violeta">
+        <div class="kpi-icono"><i class="fa-solid fa-layer-group"></i></div>
         <div class="label">Clase A / B / C / D</div>
         <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
       </div>
