@@ -248,27 +248,25 @@ input::placeholder {
   }
 }
 /* =========================================================
- *  LOGIN - Mejoras: ojito y mensaje de restricción
+ *  LOGIN - Ojito dentro del campo de contraseña
  * ========================================================= */
-
-/* --- Campo de contraseña con ojito --- */
 .input-group {
   position: relative;
-  display: flex;
-  align-items: center;
 }
 
 .input-group input {
   width: 100%;
-  padding: 12px 44px 12px 14px;
+  padding-right: 44px; /* Espacio para el ojito dentro del input */
 }
 
 .toggle-password {
   position: absolute;
-  right: 12px;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
   background: none;
   border: none;
-  color: #8A95A5;
+  color: var(--texto-claro);
   cursor: pointer;
   font-size: 17px;
   padding: 4px;
@@ -279,56 +277,5 @@ input::placeholder {
 }
 
 .toggle-password:hover {
-  color: #2A4060;
-}
-
-/* --- Mensaje de restricción mejorado --- */
-.login-nota {
-  margin-top: 28px;
-  padding: 16px 18px;
-  background: linear-gradient(135deg, #F0F2F6, #E8EBF0);
-  border-radius: 12px;
-  font-size: 12.5px;
-  color: #5E6A7A;
-  line-height: 1.6;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  font-weight: 400;
-  letter-spacing: 0.2px;
-}
-
-.login-nota .nota-icono {
-  font-size: 16px;
-  color: #E8A03D;
-  flex-shrink: 0;
-  margin-top: 1px;
-  width: 20px;
-  text-align: center;
-}
-
-.login-nota .nota-texto {
-  flex: 1;
-}
-
-.login-nota .nota-texto strong {
-  color: #0F1A2E;
-  font-weight: 600;
-}
-
-.login-nota .nota-texto .highlight {
-  color: #D18A2A;
-  font-weight: 600;
-}
-
-/* Responsive */
-@media (max-width: 480px) {
-  .login-nota {
-    font-size: 11.5px;
-    padding: 14px 14px;
-  }
-  .login-nota .nota-icono {
-    font-size: 14px;
-  }
+  color: var(--azul-medio);
 }
