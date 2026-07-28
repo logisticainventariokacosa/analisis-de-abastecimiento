@@ -279,3 +279,183 @@ input::placeholder {
 .toggle-password:hover {
   color: var(--azul-medio);
 }
+
+/* =========================================================
+ *  LOGIN - Botón de restricción elegante
+ * ========================================================= */
+.btn-restriccion {
+  width: 100%;
+  margin-top: 20px;
+  padding: 12px 18px;
+  background: transparent;
+  border: 1.5px solid var(--borde);
+  border-radius: var(--radio-peq);
+  color: var(--texto-secundario);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+}
+
+.btn-restriccion:hover {
+  border-color: var(--ambar);
+  color: var(--azul-base);
+  background: rgba(232, 160, 61, 0.05);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(232, 160, 61, 0.08);
+}
+
+.btn-restriccion .fa-shield-halved {
+  color: var(--ambar);
+  font-size: 15px;
+}
+
+.btn-restriccion .fa-chevron-right {
+  font-size: 11px;
+  opacity: 0.5;
+  transition: transform 0.3s ease;
+}
+
+.btn-restriccion:hover .fa-chevron-right {
+  transform: translateX(3px);
+  opacity: 1;
+}
+
+/* =========================================================
+ *  MODAL DE RESTRICCIÓN
+ * ========================================================= */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 26, 46, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 999;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.modal-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.modal-container {
+  background: var(--blanco);
+  border-radius: 20px;
+  padding: 40px 36px 32px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+  transform: scale(0.92) translateY(20px);
+  transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.modal-overlay.visible .modal-container {
+  transform: scale(1) translateY(0);
+}
+
+/* Decoración superior */
+.modal-container::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--ambar), var(--ambar-oscuro));
+}
+
+.modal-icono {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(232, 160, 61, 0.12), rgba(232, 160, 61, 0.06));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 28px;
+  color: var(--ambar);
+  border: 2px solid rgba(232, 160, 61, 0.2);
+}
+
+.modal-titulo {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--azul-base);
+  margin: 0 0 12px;
+}
+
+.modal-mensaje {
+  font-size: 14px;
+  color: var(--texto-secundario);
+  line-height: 1.7;
+  margin: 0 0 24px;
+}
+
+.modal-mensaje strong {
+  color: var(--azul-base);
+  font-weight: 600;
+}
+
+.modal-botones {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.modal-btn-primario {
+  padding: 12px 40px;
+  background: linear-gradient(135deg, var(--ambar), var(--ambar-oscuro));
+  color: var(--azul-base);
+  border: none;
+  border-radius: var(--radio-peq);
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.02em;
+}
+
+.modal-btn-primario:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(232, 160, 61, 0.35);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .modal-container {
+    padding: 32px 20px 28px;
+  }
+  .modal-titulo {
+    font-size: 17px;
+  }
+  .modal-mensaje {
+    font-size: 13px;
+  }
+  .modal-icono {
+    width: 52px;
+    height: 52px;
+    font-size: 22px;
+  }
+  .btn-restriccion {
+    font-size: 12px;
+    padding: 10px 14px;
+  }
+}
