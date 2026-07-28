@@ -247,6 +247,7 @@ input::placeholder {
     font-size: 19px;
   }
 }
+
 /* =========================================================
  *  LOGIN - Ojito dentro del campo de contraseña
  * ========================================================= */
@@ -256,7 +257,7 @@ input::placeholder {
 
 .input-group input {
   width: 100%;
-  padding-right: 44px; /* Espacio para el ojito dentro del input */
+  padding-right: 44px;
 }
 
 .toggle-password {
@@ -368,7 +369,6 @@ input::placeholder {
   transform: scale(1) translateY(0);
 }
 
-/* Decoración superior */
 .modal-container::before {
   content: "";
   position: absolute;
@@ -438,7 +438,6 @@ input::placeholder {
   box-shadow: 0 6px 24px rgba(232, 160, 61, 0.35);
 }
 
-/* Responsive */
 @media (max-width: 480px) {
   .modal-container {
     padding: 32px 20px 28px;
