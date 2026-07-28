@@ -23,7 +23,7 @@ function render() {
   cont.innerHTML = `
     <div class="card">
       <h3 style="margin-top:0; font-size:15px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
-        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px">💡</span>
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px"><i class="fa-solid fa-lightbulb"></i></span>
         Registrar nuevo material
       </h3>
 
@@ -53,7 +53,7 @@ function render() {
         <div style="margin-top:16px">
           <label class="form-label" for="inn-imagen">Foto del material (opcional)</label>
           <div class="file-input-wrapper" id="file-wrapper-innovacion">
-            <span class="file-icon">📷</span>
+            <span class="file-icon"><i class="fa-solid fa-camera"></i></span>
             <div class="file-info">
               <div class="file-name" id="file-name-innovacion">Seleccionar archivo</div>
               <div class="file-hint">JPG, PNG · Foto del material</div>
@@ -64,7 +64,7 @@ function render() {
         </div>
 
         <button type="submit" class="btn-primario" style="margin-top:18px; min-width:200px">
-          📝 Registrar material
+          <i class="fa-solid fa-pen-to-square"></i> Registrar material
         </button>
       </form>
       <p id="estado-innovacion" class="estado-texto"></p>
@@ -74,7 +74,7 @@ function render() {
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px">
         <h3 style="margin:0; font-size:15px; color:var(--azul-base)">Materiales registrados</h3>
         <button id="btn-descargar-innovacion-excel" class="btn-secundario" style="padding:8px 16px; font-size:12px; margin:0">
-          📥 Descargar Excel
+          <i class="fa-solid fa-download"></i> Descargar Excel
         </button>
       </div>
       <div id="lista-innovacion"><p class="vista-sub">Cargando...</p></div>
@@ -91,7 +91,7 @@ function render() {
     inputImg.addEventListener('change', () => {
       if (inputImg.files && inputImg.files[0]) {
         nameEl.textContent = inputImg.files[0].name;
-        statusEl.textContent = '✓ Cargado';
+        statusEl.innerHTML = '<i class="fa-solid fa-check"></i> Cargado';
         statusEl.className = 'file-status loaded';
         wrapper.classList.add('loaded');
       } else {
@@ -244,7 +244,7 @@ async function cargarLista() {
     <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:14px">
       ${materialesCache.map((m, idx) => `
         <div class="tarjeta-innovacion" data-idx="${idx}" style="border:1px solid var(--borde); border-radius:8px; overflow:hidden; background:var(--blanco); cursor:pointer; transition:box-shadow .15s" onmouseover="this.style.boxShadow='0 2px 8px rgba(0,0,0,0.1)'" onmouseout="this.style.boxShadow='none'">
-          ${m.imagenUrl ? `<img src="${m.imagenUrl}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'">` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px">📷 Sin imagen</div>`}
+          ${m.imagenUrl ? `<img src="${m.imagenUrl}" style="width:100%; height:140px; object-fit:cover; display:block" onerror="this.style.display='none'">` : `<div style="height:70px; background:var(--fondo); display:flex; align-items:center; justify-content:center; color:var(--texto-claro); font-size:12px"><i class="fa-solid fa-camera"></i> Sin imagen</div>`}
           <div style="padding:10px 12px">
             <div style="font-size:11px; color:var(--texto-secundario); font-weight:600; text-transform:uppercase">${nombrePorId(m.tienda)}</div>
             <div style="font-size:13px; margin:4px 0 8px">${m.descripcion}</div>
@@ -311,26 +311,26 @@ function abrirModal(idx) {
       <div style="background:#fff; border-radius:12px; max-width:480px; width:100%; max-height:90vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3)">
         ${imagenPreview ? `
           <div style="background:#1a1a2e; display:flex; align-items:center; justify-content:center; min-height:200px; max-height:320px; overflow:hidden; border-radius:12px 12px 0 0">
-            <img src="${imagenPreview}" style="width:100%; max-height:320px; object-fit:contain; display:block" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding:40px; color:#888; text-align:center\\'>❌ No se pudo cargar la imagen</div>'">
+            <img src="${imagenPreview}" style="width:100%; max-height:320px; object-fit:contain; display:block" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'padding:40px; color:#888; text-align:center\\'>No se pudo cargar la imagen</div>'">
           </div>
         ` : `
-          <div style="height:120px; background:var(--fondo); display:flex; align-items:center; justify-content:center; border-radius:12px 12px 0 0; color:var(--texto-secundario)">📷 Sin imagen</div>
+          <div style="height:120px; background:var(--fondo); display:flex; align-items:center; justify-content:center; border-radius:12px 12px 0 0; color:var(--texto-secundario)"><i class="fa-solid fa-camera"></i> Sin imagen</div>
         `}
         <div style="padding:20px">
           <div style="font-size:11px; color:var(--texto-secundario); font-weight:700; text-transform:uppercase; letter-spacing:0.05em">${nombrePorId(m.tienda)}</div>
           <h3 style="font-size:16px; color:var(--azul-base); margin:6px 0 10px">${m.descripcion}</h3>
-          <div style="font-size:13px; color:var(--texto-secundario); margin:0 0 2px">📅 Solicitado: <strong>${formatearFecha(m.fechaSolicitud)}</strong></div>
-          <div style="font-size:13px; color:var(--texto-secundario); margin:0 0 2px">👤 Registrado por: <strong>${m.nombreUsuario || m.usuario || "—"}</strong></div>
+          <div style="font-size:13px; color:var(--texto-secundario); margin:0 0 2px"><i class="fa-solid fa-calendar-days"></i> Solicitado: <strong>${formatearFecha(m.fechaSolicitud)}</strong></div>
+          <div style="font-size:13px; color:var(--texto-secundario); margin:0 0 2px"><i class="fa-solid fa-user"></i> Registrado por: <strong>${m.nombreUsuario || m.usuario || "—"}</strong></div>
           <div style="font-size:13px; margin:14px 0 6px; font-weight:600; color:${esPendiente ? 'var(--ambar-oscuro)' : 'var(--verde-kpi)'}">
             Estado actual: ${m.estado}
           </div>
 
           <div style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap">
             <button id="btn-cambiar-estado" class="btn-primario" style="max-width:none; flex:1; min-width:120px">
-              ${esPendiente ? '✅ Marcar como Procesado' : '⏳ Marcar como Pendiente'}
+              ${esPendiente ? '<i class="fa-solid fa-circle-check"></i> Marcar como Procesado' : '<i class="fa-solid fa-hourglass-half"></i> Marcar como Pendiente'}
             </button>
             <button id="btn-cerrar-modal" class="btn-secundario" style="max-width:none; margin-top:0; flex:0 0 auto; padding-left:18px; padding-right:18px">
-              ✕ Cerrar
+              <i class="fa-solid fa-xmark"></i> Cerrar
             </button>
           </div>
           <p id="estado-modal-innovacion" class="estado-texto" style="margin-top:10px"></p>
