@@ -93,6 +93,7 @@ async function cargarAnalisis() {
     const aPedir = Number(m.aPedir) || 0;
     const stockKacosa = Number(m.stockKacosa) || 0;
     const stockTienda = Number(m.stockTienda) || 0;
+    const porDespacho = Number(m.porDespacho) || 0;
     return {
       ...m,
       codigo: String(m.codigo || ''),
@@ -103,6 +104,9 @@ async function cargarAnalisis() {
       stockTienda: stockTienda,
       stockKacosa: stockKacosa,
       aPedir: aPedir,
+      porDespacho: porDespacho,
+      numeroDeNota: String(m.numeroDeNota || ''),
+      fechaDeNota: String(m.fechaDeNota || ''),
       empaque: Number(m.empaque) || 1,
       periodoVentas: String(m.periodoVentas || ''),
       periodoAbastecimiento: String(m.periodoAbastecimiento || ''),
@@ -183,7 +187,10 @@ function mostrarDashboard(analisis) {
     { key: 'promedioVentasPeriodo', label: 'Promedio ventas periodo', numeric: true },
     { key: 'stockTienda', label: 'Stock tienda', numeric: true },
     { key: 'stockKacosa', label: 'Stock Kacosa', numeric: true },
-    { key: 'aPedir', label: 'A pedir', numeric: true }
+    { key: 'aPedir', label: 'A pedir', numeric: true },
+    { key: 'porDespacho', label: 'Por despacho', numeric: true },
+    { key: 'numeroDeNota', label: 'Número de nota' },
+    { key: 'fechaDeNota', label: 'Fecha de nota' }
   ];
 
   const container = document.getElementById('dash-tabla-container');
@@ -218,10 +225,14 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   const materiales = materialesOriginal.map(m => {
     const aPedir = Number(m.aPedir) || 0;
     const stockKacosa = Number(m.stockKacosa) || 0;
+    const porDespacho = Number(m.porDespacho) || 0;
     return {
       ...m,
       aPedir: aPedir,
       stockKacosa: stockKacosa,
+      porDespacho: porDespacho,
+      numeroDeNota: String(m.numeroDeNota || ''),
+      fechaDeNota: String(m.fechaDeNota || ''),
       fechaAnalisis: analisis.fechaAnalisis || ''
     };
   });
@@ -263,7 +274,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   );
   XLSX.utils.book_append_sheet(wb, wsResumen, "Resumen");
 
-  // --- Columnas completas ---
+  // --- Columnas completas (INCLUYE las 3 nuevas columnas) ---
   const columnasCompletas = [
     { key: 'codigo', label: 'Codigo', ancho: 14 },
     { key: 'descripcion', label: 'Descripcion', ancho: 38 },
@@ -273,6 +284,9 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     { key: 'stockTienda', label: 'Stock_Tienda', ancho: 12 },
     { key: 'stockKacosa', label: 'Stock_Kacosa', ancho: 12 },
     { key: 'aPedir', label: 'A_Pedir', ancho: 10 },
+    { key: 'porDespacho', label: 'Por_Despacho', ancho: 12 },
+    { key: 'numeroDeNota', label: 'Numero_De_Nota', ancho: 14 },
+    { key: 'fechaDeNota', label: 'Fecha_De_Nota', ancho: 14 },
     { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
     { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
     { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
