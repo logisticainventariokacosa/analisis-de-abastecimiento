@@ -53,23 +53,22 @@ export function procesarNotasPendientes(filas, centrosFiltro) {
   const mapa = {};
 
   filas.forEach(f => {
-    const centroReceptor = String(f["Centro receptor"] || "").trim();
+    const centroReceptor = String(f["Centro Receptor"] || "").trim();
     if (!centrosFiltro.includes(centroReceptor)) return;
 
     const codigo = String(f["Material"] || "").trim();
     if (!codigo) return;
 
-    const cantidad = aNumero(f["Cant Ent"] || 0);
+    const cantidad = aNumero(f["Cant Entrega"] || 0);
     if (cantidad <= 0) return;
 
     const numeroNota = String(f["Entrega"] || "").trim();
-    const fechaNota = String(f["Fecha entrega"] || "").trim();
+    const fechaNota = String(f["Fec. Entrega"] || "").trim();
 
     if (!mapa[codigo]) {
       mapa[codigo] = { cantidad: 0, numeroNota: numeroNota, fechaNota: fechaNota };
     }
 
-    // Sumar cantidad, acumular notas y fechas (separadas por coma)
     mapa[codigo].cantidad += cantidad;
     if (numeroNota && !mapa[codigo].numeroNota.includes(numeroNota)) {
       mapa[codigo].numeroNota = mapa[codigo].numeroNota 
