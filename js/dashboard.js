@@ -161,24 +161,35 @@ function mostrarDashboard(analisis) {
   resultadoDiv.innerHTML = `
     <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${analisis.fechaAnalisis || "—"}</strong></p>
     <div class="kpi-grid">
+      <!-- Tarjeta 1: Materiales a pedir -->
       <div class="kpi-card verde">
         <div class="kpi-icono"><i class="fa-solid fa-box-open"></i></div>
         <div class="label">Materiales a pedir</div>
         <div class="valor">${totalMaterialesAPedir}</div>
       </div>
+      <!-- Tarjeta 2: Unidades a pedir -->
       <div class="kpi-card ambar">
         <div class="kpi-icono"><i class="fa-solid fa-cart-shopping"></i></div>
         <div class="label">Unidades a pedir</div>
         <div class="valor">${totalUnidadesAPedir}</div>
       </div>
+      <!-- Tarjeta 3: Clase A/B/C/D -->
       <div class="kpi-card violeta">
         <div class="kpi-icono"><i class="fa-solid fa-layer-group"></i></div>
         <div class="label">Clase A / B / C / D</div>
         <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
       </div>
-      <!-- NUEVA TARJETA: Material con mayor venta -->
-      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F4FD 130%);">
-        <div class="kpi-icono" style="background: linear-gradient(135deg, #2A4060, #1E2F47); box-shadow: 0 4px 12px rgba(42, 64, 96, 0.35);">
+      <!-- Tarjeta 4: Materiales con ventas -->
+      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
+        <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35);">
+          <i class="fa-solid fa-chart-simple"></i>
+        </div>
+        <div class="label">Materiales con ventas</div>
+        <div class="valor">${totalMaterialesConVentas}</div>
+      </div>
+      <!-- Tarjeta 5: Material con mayor venta (ÚLTIMA) -->
+      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #F0E6F6 130%);">
+        <div class="kpi-icono" style="background: linear-gradient(135deg, #8B6BAE, #6B4A8A); box-shadow: 0 4px 12px rgba(107, 74, 138, 0.35);">
           <i class="fa-solid fa-trophy"></i>
         </div>
         <div class="label">Material con mayor venta</div>
@@ -187,22 +198,14 @@ function mostrarDashboard(analisis) {
             <span style="display:block; font-size:13px; font-weight:600; color:var(--azul-base);">
               ${materialMayorVenta.codigo}
             </span>
-            <span style="display:block; font-size:13px; font-weight:400; color:var(--texto-secundario);">
-              ${materialMayorVenta.descripcion.substring(0, 30)}${materialMayorVenta.descripcion.length > 30 ? '...' : ''}
+            <span style="display:block; font-size:12px; font-weight:400; color:var(--texto-secundario);">
+              ${materialMayorVenta.descripcion.substring(0, 25)}${materialMayorVenta.descripcion.length > 25 ? '...' : ''}
             </span>
-            <span style="display:block; font-size:18px; font-weight:700; color:var(--azul-medio); margin-top:4px;">
+            <span style="display:block; font-size:18px; font-weight:700; color:#6B4A8A; margin-top:4px;">
               ${Math.round(maxVentas)} und.
             </span>
           ` : '—'}
         </div>
-      </div>
-      <!-- NUEVA TARJETA: Total materiales con ventas -->
-      <div class="kpi-card" style="background: linear-gradient(135deg, var(--blanco) 55%, #F0F0F0 130%);">
-        <div class="kpi-icono" style="background: linear-gradient(135deg, #5E6A7A, #8A95A5); box-shadow: 0 4px 12px rgba(94, 106, 122, 0.35);">
-          <i class="fa-solid fa-chart-line"></i>
-        </div>
-        <div class="label">Materiales con ventas</div>
-        <div class="valor">${totalMaterialesConVentas}</div>
       </div>
     </div>
     <div class="card">
@@ -330,7 +333,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
     { key: 'aPedir', label: 'A_Pedir', ancho: 10 },
     { key: 'porDespacho', label: 'Por_Despacho', ancho: 12 },
     { key: 'numeroDeNota', label: 'Numero_De_Nota', ancho: 14 },
-    { key: 'fechaDeNota', label: 'Fecha_De_Nota', uncho: 14 },
+    { key: 'fechaDeNota', label: 'Fecha_De_Nota', ancho: 14 },
     { key: 'periodoVentas', label: 'Periodo_Ventas', ancho: 14 },
     { key: 'periodoAbastecimiento', label: 'Periodo_Abastecimiento', ancho: 16 },
     { key: 'rangoSeguridadUsado', label: 'Rango_Seguridad_Usado', ancho: 14 },
