@@ -77,7 +77,7 @@ function render() {
     <div class="card">
       <h3 style="margin-top:0; font-size:16px; color:var(--azul-base); display:flex; align-items:center; gap:10px">
         <span style="display:inline-flex; align-items:center; justify-content:center; width:28px; height:28px; background:var(--ambar-claro); border-radius:8px; font-size:14px"><i class="fa-solid fa-file-lines"></i></span>
-        Archivos y parámetros
+        1. Archivos y parámetros
       </h3>
 
       ${tieneVariasTiendas ? `
@@ -607,22 +607,26 @@ function mostrarResultados(resultado, sugerencias) {
 
   cont.innerHTML = `
     <div class="card">
-      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">Resultado</h3>
+      <h3 style="margin-top:0; font-size:15px; color:var(--azul-base)">3. Resultado</h3>
       <p class="vista-sub" style="margin-top:-4px">${textoPeriodo}</p>
       <div class="kpi-grid">
         <div class="kpi-card verde">
+          <div class="kpi-icono"><i class="fa-solid fa-box-open"></i></div>
           <div class="label">Materiales a pedir</div>
           <div class="valor">${grupos.pedido.length}</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card ambar">
+          <div class="kpi-icono"><i class="fa-solid fa-cart-shopping"></i></div>
           <div class="label">Total unidades a pedir</div>
           <div class="valor">${totalAPedir}</div>
         </div>
         <div class="kpi-card rojo">
+          <div class="kpi-icono"><i class="fa-solid fa-triangle-exclamation"></i></div>
           <div class="label">Pendiente por falta de stock</div>
           <div class="valor">${grupos.pendienteStock.length}</div>
         </div>
-        <div class="kpi-card">
+        <div class="kpi-card violeta">
+          <div class="kpi-icono"><i class="fa-solid fa-layer-group"></i></div>
           <div class="label">Clase A / B / C / D</div>
           <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
         </div>
@@ -641,7 +645,7 @@ function mostrarResultados(resultado, sugerencias) {
       <div id="na-tabla-container"></div>
 
       <p class="vista-sub" style="margin-top:16px">
-        El archivo descargable incluye: (1) ${grupos.pedido.length} material(es) a pedir,
+        Los 5 archivos descargables incluyen: (1) ${grupos.pedido.length} material(es) a pedir,
         (2) ${grupos.noPedido.length} que no ameritaron pedido,
         (3) ${grupos.pendienteStock.length} con pedido pendiente por falta de stock en Kacosa,
         (4) ${grupos.sugerencias.length} sugerencia(s),
@@ -649,7 +653,7 @@ function mostrarResultados(resultado, sugerencias) {
       </p>
 
       <div class="btn-group">
-        <button id="btn-descargar-excel" class="btn-primario"><i class="fa-solid fa-download"></i> Descargar Excel </button>
+        <button id="btn-descargar-excel" class="btn-primario"><i class="fa-solid fa-download"></i> Descargar Excel (1 archivo, 5 pestañas)</button>
         <button id="btn-guardar-analisis" class="btn-secundario"><i class="fa-solid fa-arrows-rotate"></i> Volver a guardar</button>
         <button id="btn-enviar-correo" class="btn-secundario"><i class="fa-solid fa-envelope"></i> Enviar por correo</button>
       </div>
