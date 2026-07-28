@@ -910,6 +910,25 @@ tbody tr:hover {
   align-items: center;
 }
 
+.chat-header-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-header-icono {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
 .chat-titulo { 
   font-size: 14px; 
   font-weight: 600; 
