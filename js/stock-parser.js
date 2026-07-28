@@ -63,7 +63,10 @@ export function procesarNotasPendientes(filas, centrosFiltro) {
     if (cantidad <= 0) return;
 
     const numeroNota = String(f["Entrega"] || "").trim();
-    const fechaNota = String(f["Fec. Entrega"] || "").trim();
+    let fechaNota = String(f["Fec. Entrega"] || "").trim();
+
+    // Formatear la fecha si es un objeto Date o un string en formato ISO
+    fechaNota = formatearFechaParaNota(fechaNota);
 
     if (!mapa[codigo]) {
       mapa[codigo] = { cantidad: 0, numeroNota: numeroNota, fechaNota: fechaNota };
@@ -83,4 +86,91 @@ export function procesarNotasPendientes(filas, centrosFiltro) {
   });
 
   return mapa;
+}
+
+/**
+ * Formatea una fecha para ser mostrada en formato DD/MM/AAAA.
+ * Maneja objetos Date, strings ISO y strings ya formateados.
+ */
+function formatearFechaParaNota(fecha) {
+  if (!fecha) return "";
+
+  // Si es un objeto Date (aunque improbable, por si acaso)
+  if (fecha instanceof Date && !isNaN(fecha)) {
+    const d = fecha;
+    return String(d.getDate()).padStart(2, '0') + '/' + 
+           String(d.getMonth() + 1).padStart(2, '0') + '/' + 
+           d.getFullYear();
+  }
+
+  // Si es un string que contiene una fecha ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss)
+  const fechaStr = String(fecha);
+  const matchISO = fechaStr.match(/^(\d{4})-(\d{2})-(\d{2})(?:T|$)/);
+  if (matchISO) {
+    return matchISO[3] + '/' + matchISO[2] + '/' + matchISO[1];
+  }
+
+  // Si es un string que ya tiene formato DD/MM/AAAA o similar, lo dejamos igual
+  // (pero intentamos normalizar si tiene barras invertidas)
+  if (fechaStr.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+    return fechaStr;
+  }
+
+  // Si es un número (timestamp de Excel o Unix), intentar convertirlo
+  const num = Number(fecha);
+  if (!isNaN(num) && num > 0) {
+    // Si es un número de Excel (días desde 1900)
+    if (num < 100000) {
+      // Convertir número de Excel a fecha
+      const excelEpoch = new Date(1899, 11, 30);
+      const d = new Date(excelEpoch.getTime() + num * 86400000);
+      if (!isNaN(d)) {
+        return String(d.getDate()).padStart(2, '0') + '/' + 
+               String(d.getMonth() + 1).padStart(2, '0') + '/' + 
+               d.getFullYear();
+      }
+    } else {
+      // Si es timestamp Unix (milisegundos)
+      const d = new Date(num);
+      if (!isNaN(d)) {
+        return String(d.getDate()).padStart(2, '0') + '/' + 
+               String(d.getMonth() + 1).padStart(2, '0') + '/' + 
+               d.getFullYear();
+      }
+    }
+  }
+
+  // Si el string contiene una fecha con meses en inglés (ej. "Tue Jul 21 2026")
+  const matchEng = fechaStr.match(/([A-Za-z]{3}) ([A-Za-z]{3}) (\d{1,2}) (\d{4})/);
+  if (matchEng) {
+    const meses = { 'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04', 'May': '05', 'Jun': '06',
+                    'Jul': '07', 'Aug': '08', 'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12' };
+    const mes = meses[matchEng[2]] || matchEng[2];
+    const dia = String(parseInt(matchEng[3])).padStart(2, '0');
+    return dia + '/' + mes + '/' + matchEng[4];
+  }
+
+  // Si ya es un string con formato DD/MM/AAAA con barra invertida
+  if (fechaStr.match(/^\d{2}\\\/\d{2}\\\/\d{4}$/)) {
+    return fechaStr.replace(/\\\//g, '/');
+  }
+
+  // Si el string contiene una fecha con separadores diferentes
+  const matchBarra = fechaStr.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+  if (matchBarra) {
+    return matchBarra[1] + '/' + matchBarra[2] + '/' + matchBarra[3];
+  }
+
+  // Último intento: si el string parece una fecha, intentar parsearla
+  try {
+    const d = new Date(fechaStr);
+    if (!isNaN(d)) {
+      return String(d.getDate()).padStart(2, '0') + '/' + 
+             String(d.getMonth() + 1).padStart(2, '0') + '/' + 
+             d.getFullYear();
+    }
+  } catch (_) {}
+
+  // Si nada funciona, devolver el string original
+  return fechaStr;
 }
