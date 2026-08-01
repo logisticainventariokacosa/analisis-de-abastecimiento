@@ -1,8 +1,7 @@
 // js/nav.js
-import { auth, db } from "./firebase-config.js";
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+import { auth } from "./firebase-config.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
-import { protegerPagina, cerrarSesion } from "./auth.js";
+import { protegerPagina, cerrarSesion, obtenerPerfilPortal, ROLES_PERMITIDOS_ABASTECIMIENTO } from "./auth.js";
 import { nombrePorId } from "./tiendas.js";
 import { mostrarLoader, ocultarLoader } from "./loader.js";
 
@@ -17,23 +16,28 @@ window.KACOSA = {
 
 protegerPagina();
 
-// Espera a que se confirme la sesión para cargar los datos del usuario (tiendas permitidas)
+// Espera a que se confirme la sesión para cargar el perfil del usuario (rol y tienda)
 onAuthStateChanged(auth, async (user) => {
   if (!user) return; // protegerPagina() ya se encarga de redirigir al login
 
-  const ref = doc(db, "usuarios_autorizados", user.email.toLowerCase());
-  const snap = await getDoc(ref);
-  const datos = snap.exists() ? snap.data() : {};
-  const tiendas = datos.tiendas || [];
-  const nombre = datos.nombre || user.displayName || user.email || "";
+  const perfil = await obtenerPerfilPortal(user.email);
+  const rol = perfil?.rol || null;
+  const nombre = perfil?.nombre || user.displayName || user.email || "";
+
+  // GERENTE ve solo su tienda asignada. Los demás roles permitidos ven todas.
+  const esGerente = rol === "gerente";
+  const tiendas = esGerente
+    ? (perfil?.tienda ? [perfil.tienda] : [])
+    : ["TODAS"];
 
   window.KACOSA.usuario = {
     email: user.email,
     nombre: nombre,
     displayName: nombre,
+    rol: rol,
     ...user
   };
-  
+
   window.KACOSA.tiendas = tiendas;
   window.KACOSA.tiendaActiva = tiendas.includes("TODAS") ? null : tiendas[0] || null;
 
@@ -41,9 +45,15 @@ onAuthStateChanged(auth, async (user) => {
   actualizarUsuarioSidebar();
 
   // "Alertas Kacosa" es solo para perfiles con acceso a TODAS las tiendas
+  // (es decir, todos los roles permitidos excepto "gerente")
   const btnAlertas = document.querySelector('[data-vista="vista-alertas-kacosa"]');
   if (btnAlertas && !tiendas.includes("TODAS")) {
     btnAlertas.style.display = "none";
+  }
+
+  // Aviso si un gerente no tiene tienda asignada (no debería pasar, pero evita confusión)
+  if (esGerente && tiendas.length === 0) {
+    console.warn("El usuario " + user.email + " es gerente pero no tiene 'tienda' asignada en el portal.");
   }
 
   // Actualizar modal de usuario
