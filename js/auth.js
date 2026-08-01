@@ -1,4 +1,4 @@
-import { auth, db, googleProvider } from "./firebase-config.js";
+import { auth, dbAuth, googleProvider } from "./firebase-config.js";
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
@@ -8,11 +8,11 @@ import {
 import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 import { mostrarLoader, ocultarLoader } from "./loader.js";
 
-// Revisa si el correo está en la colección de autorizados (de ESTA app)
+// Revisa si el correo está dado de alta como empleado en el Portal KACOSA
 async function correoAutorizado(email) {
-  const ref = doc(db, "usuarios_autorizados", email.toLowerCase());
+  const ref = doc(dbAuth, "usuarios", email);
   const snap = await getDoc(ref);
-  return snap.exists() && snap.data().activo === true;
+  return snap.exists();
 }
 
 function mostrarError(msg) {
