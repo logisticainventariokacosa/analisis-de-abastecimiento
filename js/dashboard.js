@@ -104,6 +104,8 @@ async function cargarAnalisis() {
       stockTienda: stockTienda,
       stockKacosa: stockKacosa,
       aPedir: aPedir,
+      aPedirIdeal: Number(m.aPedirIdeal) || 0,
+      pendiente: Number(m.pendiente) || 0,
       porDespacho: porDespacho,
       numeroDeNota: String(m.numeroDeNota || ''),
       fechaDeNota: String(m.fechaDeNota || ''),
@@ -146,11 +148,14 @@ function mostrarDashboard(analisis) {
   // Total de materiales con ventas (= con movimientos, ya que el archivo de ventas es el de movimientos)
   const totalMaterialesConVentas = materialesCache.filter(m => m.totalVentas > 0).length;
 
-  // Materiales que no necesitaron pedido en este análisis
-  const totalMaterialesNoAmeritoPedido = materialesCache.filter(m => m.aPedir === 0).length;
+  // Materiales que no necesitaron pedido en este análisis (igual que en el Excel
+  // original: se basa en aPedirIdeal, la necesidad ANTES de limitarla por el
+  // stock de Kacosa, no en aPedir que ya viene recortado).
+  const totalMaterialesNoAmeritoPedido = materialesCache.filter(m => m.aPedirIdeal === 0).length;
 
-  // Total de materiales con movimientos menos el total de materiales a pedir
-  const totalSinStockSuficienteKacosa = totalMaterialesConVentas - totalMaterialesAPedir;
+  // Materiales pendientes por falta de stock suficiente en Kacosa (coincide
+  // exactamente con la pestaña "Pendiente_Stock_Kacosa" del análisis original)
+  const totalSinStockSuficienteKacosa = materialesCache.filter(m => (m.pendiente || 0) > 0).length;
 
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
@@ -292,7 +297,8 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   const base = `${analisis.tienda}_${analisis.fechaAnalisis?.replace(/\//g, "-") || "sin_fecha"}`;
 
   const pedido = materiales.filter(m => m.aPedir > 0);
-  const noPedido = materiales.filter(m => m.aPedir === 0);
+  const noPedido = materiales.filter(m => (m.aPedirIdeal || 0) === 0);
+  const pendienteStock = materiales.filter(m => (m.pendiente || 0) > 0);
 
   const totalMaterialesAPedir = pedido.length;
   const totalUnidadesAPedir = pedido.reduce((acc, m) => acc + m.aPedir, 0);
@@ -310,6 +316,7 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
       { label: "Fecha de análisis", valor: analisis.fechaAnalisis || "—" },
       { label: "Materiales a pedir", valor: totalMaterialesAPedir, color: "FF2F8F6E" },
       { label: "Unidades a pedir", valor: totalUnidadesAPedir, color: "FF1B2A41" },
+      { label: "Pendiente por falta de stock", valor: pendienteStock.length, color: "FFC4432B" },
       { label: "Clase A", valor: porClase.A, color: "FF2F8F6E" },
       { label: "Clase B", valor: porClase.B, color: "FF4A6FA5" },
       { label: "Clase C", valor: porClase.C, color: "FFE8A03D" },
@@ -351,6 +358,10 @@ function descargarExcelDashboard(materialesOriginal, analisis) {
   XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(noPedido, columnasCompletas, {
     colorearPorClase: true
   }), "No_Amerito_Pedido");
+
+  XLSX.utils.book_append_sheet(wb, construirHojaEstilizada(pendienteStock, columnasCompletas, {
+    colorearPorClase: true
+  }), "Pendiente_Stock_Kacosa");
 
   XLSX.writeFile(wb, `Dashboard_${base}.xlsx`);
   notificarExito("El archivo Excel del Dashboard se descargó correctamente.", { titulo: "Excel descargado" });
