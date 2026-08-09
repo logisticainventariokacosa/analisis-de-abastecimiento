@@ -58,9 +58,14 @@ function render() {
         </div>
       </div>
 
-      <button id="btn-analizar-kacosa" class="btn-primario" style="margin-top:16px; min-width:200px" disabled>
-        <i class="fa-solid fa-chart-column"></i> Analizar stock
-      </button>
+      <div class="btn-group" style="margin-top:16px">
+        <button id="btn-analizar-kacosa" class="btn-primario" style="min-width:200px" disabled>
+          <i class="fa-solid fa-chart-column"></i> Analizar stock
+        </button>
+        <button id="btn-limpiar-kacosa" class="btn-secundario" style="display:none; min-width:160px">
+          <i class="fa-solid fa-broom"></i> Limpiar datos
+        </button>
+      </div>
       <p id="estado-alertas" class="estado-texto" style="margin-top:12px"></p>
     </div>
     <div id="resultado-alertas"></div>
@@ -94,6 +99,10 @@ function render() {
   const btnAnalizar = document.getElementById("btn-analizar-kacosa");
   if (btnAnalizar) {
     btnAnalizar.addEventListener("click", procesarArchivo);
+  }
+  const btnLimpiar = document.getElementById("btn-limpiar-kacosa");
+  if (btnLimpiar) {
+    btnLimpiar.addEventListener("click", limpiarAlertasKacosa);
   }
 
   cargarUltimaAlertaGuardada();
@@ -249,6 +258,49 @@ function validarArchivoStock(filas) {
   };
 }
 
+/** Bloquea o desbloquea el input de archivo y los botones de período mientras se procesa. */
+function bloquearFormularioKacosa(bloquear) {
+  const input = document.getElementById("input-stock-kacosa");
+  if (input) input.disabled = bloquear;
+  document.querySelectorAll(".btn-periodo").forEach(btn => { btn.disabled = bloquear; });
+}
+
+/** Limpia el archivo cargado y los resultados, dejando el módulo listo para un análisis nuevo. */
+function limpiarAlertasKacosa() {
+  const input = document.getElementById("input-stock-kacosa");
+  const nameEl = document.getElementById("file-name-kacosa");
+  const statusEl = document.getElementById("file-status-kacosa");
+  const wrapper = document.getElementById("file-wrapper-kacosa");
+  const validEl = document.getElementById("validacion-stock-kacosa-alertas");
+
+  if (input) input.value = "";
+  if (nameEl) nameEl.textContent = "Seleccionar archivo";
+  if (statusEl) {
+    statusEl.textContent = "Pendiente";
+    statusEl.className = "file-status empty";
+  }
+  if (wrapper) wrapper.classList.remove("loaded");
+  if (validEl) validEl.innerHTML = "";
+
+  archivoValido = false;
+  filasCache = null;
+
+  const resultado = document.getElementById("resultado-alertas");
+  if (resultado) resultado.innerHTML = "";
+  const estado = document.getElementById("estado-alertas");
+  if (estado) estado.textContent = "";
+
+  bloquearFormularioKacosa(false);
+
+  const btnAnalizar = document.getElementById("btn-analizar-kacosa");
+  if (btnAnalizar) {
+    btnAnalizar.disabled = true; // vuelve a requerir un archivo válido
+    btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
+  }
+  const btnLimpiar = document.getElementById("btn-limpiar-kacosa");
+  if (btnLimpiar) btnLimpiar.style.display = "none";
+}
+
 async function procesarArchivo() {
   const estado = document.getElementById("estado-alertas");
   const resultado = document.getElementById("resultado-alertas");
@@ -265,6 +317,7 @@ async function procesarArchivo() {
       btnAnalizar.disabled = true;
       btnAnalizar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando...';
     }
+    bloquearFormularioKacosa(true);
     if (estado) estado.textContent = "Procesando archivo...";
 
     const filas = filasCache;
@@ -285,16 +338,20 @@ async function procesarArchivo() {
         btnAnalizar.disabled = false;
         btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
       }
+      bloquearFormularioKacosa(false);
       return;
     }
 
     if (estado) estado.textContent = `Listo — ${resp.alertas.length} alerta(s) encontrada(s).`;
     mostrarAlertas(resp.alertas);
 
+    // No se reactiva el formulario: evita volver a procesar el mismo archivo y
+    // duplicar el cálculo guardado en Supabase. "Limpiar datos" permite reiniciar.
     if (btnAnalizar) {
-      btnAnalizar.disabled = false;
-      btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
+      btnAnalizar.innerHTML = '<i class="fa-solid fa-circle-check"></i> Análisis completado';
     }
+    const btnLimpiar = document.getElementById("btn-limpiar-kacosa");
+    if (btnLimpiar) btnLimpiar.style.display = "";
 
   } catch (err) {
     const estado = document.getElementById("estado-alertas");
@@ -304,6 +361,7 @@ async function procesarArchivo() {
       btnAnalizar.disabled = false;
       btnAnalizar.innerHTML = '<i class="fa-solid fa-chart-column"></i> Analizar stock';
     }
+    bloquearFormularioKacosa(false);
   }
 }
 
@@ -393,7 +451,7 @@ function mostrarAlertas(alertas) {
         </div>
         <div class="kpi-card azul" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
           <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35); color:#fff;">
-            <i class="fa-solid fa-boxes-packing"></i>
+            <i class="fa-solid fa-cubes"></i>
           </div>
           <div class="label">Total piezas por solicitud de compra</div>
           <div class="valor">${totalPiezasSolicitud}</div>
