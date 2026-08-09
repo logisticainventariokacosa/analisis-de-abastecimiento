@@ -95,6 +95,29 @@ function render() {
   if (btnAnalizar) {
     btnAnalizar.addEventListener("click", procesarArchivo);
   }
+
+  cargarUltimaAlertaGuardada();
+}
+
+/**
+ * Al entrar al módulo, muestra automáticamente el último cálculo de Alertas Kacosa
+ * guardado en Supabase (tabla "alertas_kacosa"), sin necesidad de subir un archivo.
+ */
+async function cargarUltimaAlertaGuardada() {
+  const estado = document.getElementById("estado-alertas");
+  try {
+    const resp = await callBridge("leerUltimaAlertaKacosa", {});
+    if (!resp.ok || !resp.alertas || resp.alertas.length === 0) return;
+
+    mostrarAlertas(resp.alertas);
+
+    if (estado) {
+      const fecha = resp.creadoEn ? new Date(resp.creadoEn).toLocaleString("es-VE") : "";
+      estado.innerHTML = `<i class="fa-solid fa-clock-rotate-left"></i> Mostrando el último análisis guardado${fecha ? " (" + fecha + ")" : ""}. Sube un archivo nuevo para recalcular.`;
+    }
+  } catch (err) {
+    console.error("No se pudo cargar el último dashboard de Alertas Kacosa:", err);
+  }
 }
 
 function setupFileInput() {
