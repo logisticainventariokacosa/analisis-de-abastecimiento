@@ -132,7 +132,6 @@ function mostrarDashboard(analisis) {
   window.KACOSA.ultimoDashboardAnalisis = analisis;
   
   const totalMaterialesAPedir = materialesCache.filter(m => m.aPedir > 0).length;
-  const totalUnidadesAPedir = materialesCache.reduce((acc, m) => acc + m.aPedir, 0);
   
   // Material con mayor venta
   let materialMayorVenta = null;
@@ -144,11 +143,14 @@ function mostrarDashboard(analisis) {
     }
   });
 
-  // Total de materiales con ventas (> 0)
+  // Total de materiales con ventas (= con movimientos, ya que el archivo de ventas es el de movimientos)
   const totalMaterialesConVentas = materialesCache.filter(m => m.totalVentas > 0).length;
 
-  // Materiales que esta tienda necesita pedir, pero Kacosa no tiene stock suficiente para cubrir
-  const totalSinStockSuficienteKacosa = materialesCache.filter(m => m.aPedir > 0 && m.stockKacosa < m.aPedir).length;
+  // Materiales que no necesitaron pedido en este análisis
+  const totalMaterialesNoAmeritoPedido = materialesCache.filter(m => m.aPedir === 0).length;
+
+  // Total de materiales con movimientos menos el total de materiales a pedir
+  const totalSinStockSuficienteKacosa = totalMaterialesConVentas - totalMaterialesAPedir;
 
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
@@ -159,25 +161,7 @@ function mostrarDashboard(analisis) {
   resultadoDiv.innerHTML = `
     <p class="vista-sub" style="margin-top:0">Último análisis: <strong>${analisis.fechaAnalisis || "—"}</strong></p>
     <div class="kpi-grid">
-      <!-- Tarjeta 1: Materiales a pedir -->
-      <div class="kpi-card verde">
-        <div class="kpi-icono"><i class="fa-solid fa-box-open"></i></div>
-        <div class="label">Materiales a pedir</div>
-        <div class="valor">${totalMaterialesAPedir}</div>
-      </div>
-      <!-- Tarjeta 2: Unidades a pedir -->
-      <div class="kpi-card ambar">
-        <div class="kpi-icono"><i class="fa-solid fa-cart-shopping"></i></div>
-        <div class="label">Unidades a pedir</div>
-        <div class="valor">${totalUnidadesAPedir}</div>
-      </div>
-      <!-- Tarjeta 3: Clase A/B/C/D -->
-      <div class="kpi-card violeta">
-        <div class="kpi-icono"><i class="fa-solid fa-layer-group"></i></div>
-        <div class="label">Clase A / B / C / D</div>
-        <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
-      </div>
-      <!-- Tarjeta 4: Materiales con ventas (AZUL) -->
+      <!-- Tarjeta 1: Materiales con ventas (AZUL) -->
       <div class="kpi-card azul" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
         <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35); color:#fff;">
            <i class="fa-solid fa-coins"></i>
@@ -185,7 +169,31 @@ function mostrarDashboard(analisis) {
         <div class="label">Materiales con ventas</div>
         <div class="valor">${totalMaterialesConVentas}</div>
       </div>
-      <!-- Tarjeta 5: Material con mayor venta (PÚRPURA, ÚLTIMA) -->
+      <!-- Tarjeta 2: Clase A/B/C/D -->
+      <div class="kpi-card violeta">
+        <div class="kpi-icono"><i class="fa-solid fa-layer-group"></i></div>
+        <div class="label">Clase A / B / C / D</div>
+        <div class="valor" style="font-size:18px">${porClase.A} / ${porClase.B} / ${porClase.C} / ${porClase.D}</div>
+      </div>
+      <!-- Tarjeta 3: Materiales a pedir -->
+      <div class="kpi-card verde">
+        <div class="kpi-icono"><i class="fa-solid fa-box-open"></i></div>
+        <div class="label">Materiales a pedir</div>
+        <div class="valor">${totalMaterialesAPedir}</div>
+      </div>
+      <!-- Tarjeta 4: Materiales que no ameritó pedido (AMBAR) -->
+      <div class="kpi-card ambar">
+        <div class="kpi-icono"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="label">Materiales que no ameritó pedido</div>
+        <div class="valor">${totalMaterialesNoAmeritoPedido}</div>
+      </div>
+      <!-- Tarjeta 5: Sin stock suficiente en Kacosa (ROJA) -->
+      <div class="kpi-card rojo">
+        <div class="kpi-icono"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="label">Materiales sin stock suficiente en Kacosa</div>
+        <div class="valor">${totalSinStockSuficienteKacosa}</div>
+      </div>
+      <!-- Tarjeta 6: Material con mayor venta (PÚRPURA, ÚLTIMA) -->
       <div class="kpi-card purpura" style="background: linear-gradient(135deg, var(--blanco) 55%, #F0E6F6 130%);">
         <div class="kpi-icono" style="background: linear-gradient(135deg, #8B6BAE, #6B4A8A); box-shadow: 0 4px 12px rgba(107, 74, 138, 0.35); color:#fff;">
           <i class="fa-solid fa-trophy"></i>
@@ -204,12 +212,6 @@ function mostrarDashboard(analisis) {
             </span>
           ` : '—'}
         </div>
-      </div>
-      <!-- Tarjeta 6: Sin stock suficiente en Kacosa (ROJA) -->
-      <div class="kpi-card rojo">
-        <div class="kpi-icono"><i class="fa-solid fa-triangle-exclamation"></i></div>
-        <div class="label">Sin stock suficiente en Kacosa</div>
-        <div class="valor">${totalSinStockSuficienteKacosa}</div>
       </div>
     </div>
     <div class="card">
