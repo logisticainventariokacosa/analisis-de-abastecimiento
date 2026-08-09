@@ -1,5 +1,5 @@
 // js/nuevo-analisis.js
-import { parsearMHT } from "./mht-parser.js";
+import { parsearMHT, aNumero } from "./mht-parser.js";
 import { procesarVentas } from "./ventas-parser.js";
 import { agruparStock, procesarNotasPendientes } from "./stock-parser.js";
 import { cargarPaquetes } from "./paquetes.js";
@@ -13,6 +13,57 @@ import { construirHojaEstilizada, construirHojaResumen } from "./excel-estilos.j
 import { leerXLSXGenerico, procesarPendientesSync, restarPendientesSync } from "./pendientes-sync-parser.js";
 
 const CENTROS_KACOSA = ["1000", "3000"];
+
+// ============================================================
+//  SINCRONIZACIÓN CON SUPABASE (stock y movimientos)
+// ============================================================
+/**
+ * Envía las filas crudas de stock (tienda + Kacosa) y de movimientos (archivo de ventas)
+ * a las tablas "stock" y "movimientos" de Supabase, vía el bridge (Apps Script).
+ * Se ejecuta en segundo plano: si falla, solo se registra en consola y no interrumpe el análisis.
+ */
+function sincronizarStockYMovimientos(filasVentas, filasStockTienda, filasStockKacosa) {
+  const filasStock = [...filasStockTienda, ...filasStockKacosa].map(f => ({
+    material: String(f["Material"] || "").trim(),
+    centro: String(f["Centro"] || "").trim(),
+    almacen: String(f["Almacén"] || "").trim(),
+    textoBreve: f["Texto breve de material"] || "",
+    unidadMedidaBase: f["Unidad medida base"] || "",
+    denominacionAlmacen: f["Denominación-almacén"] || "",
+    libreUtilizacion: aNumero(f["Libre utilización"]),
+    transTrasl: aNumero(f["Trans./Trasl."]),
+    enControlCalidad: aNumero(f["En control calidad"]),
+    bloqueado: aNumero(f["Bloqueado"]),
+    devoluciones: aNumero(f["Devoluciones"])
+  })).filter(f => f.material && f.centro);
+
+  const filasMovimientos = filasVentas.map(f => ({
+    material: String(f["Material"] || "").trim(),
+    textoBreve: f["Texto breve de material"] || "",
+    centro: String(f["Centro"] || "").trim(),
+    almacen: String(f["Almacén"] || "").trim(),
+    claseMovimiento: String(f["Clase de movimiento"] || "").trim(),
+    documentoMaterial: String(f["Documento material"] || "").trim(),
+    fechaContabilizacion: String(f["Fe.contabilización"] || "").trim(),
+    horaEntrada: String(f["Hora de entrada"] || "").trim(),
+    cantidadUmEntrada: aNumero(f["Ctd.en UM entrada"]),
+    unidadMedidaEntrada: f["Un.medida de entrada"] || "",
+    cliente: f["Cliente"] || "",
+    nombreUsuario: f["Nombre del usuario"] || "",
+    textoCabDocumento: f["Texto cab.documento"] || ""
+  })).filter(f => f.material && f.centro);
+
+  if (filasStock.length > 0) {
+    callBridge("guardarStock", { filas: filasStock }).catch(err =>
+      console.error("No se pudo sincronizar el stock con Supabase:", err)
+    );
+  }
+  if (filasMovimientos.length > 0) {
+    callBridge("guardarMovimientos", { filas: filasMovimientos }).catch(err =>
+      console.error("No se pudo sincronizar los movimientos con Supabase:", err)
+    );
+  }
+}
 
 // ============================================================
 //  COLUMNAS REQUERIDAS PARA CADA TIPO DE ARCHIVO
@@ -409,6 +460,10 @@ async function ejecutarAnalisis() {
     const stockTienda = agruparStock(filasStockTienda, centrosValidos);
     const stockKacosa = agruparStock(filasStockKacosa, CENTROS_KACOSA);
 
+    // Alimenta las tablas de Stock y Movimientos en Supabase con los datos crudos
+    // de los archivos que se acaban de subir. No bloquea el análisis si falla.
+    sincronizarStockYMovimientos(filasVentas, filasStockTienda, filasStockKacosa);
+
     // Archivo opcional de notas pendientes por despacho
     let notasPendientes = null;
     if (archivoNotasPendientes) {
@@ -669,6 +724,7 @@ async function finalizarCalculo(gruposConfirmados) {
   if (estadoAcciones) estadoAcciones.textContent = "Guardando automáticamente en Google Sheets...";
   const respGuardado = await callBridge("guardarAnalisis", {
     tienda: estado.tiendaSeleccionada,
+    centro: centrosDeTienda(estado.tiendaSeleccionada).join(","),
     fechaAnalisis: estado.fechaAnalisis,
     materiales: estado.resultadoFinal
   });
@@ -947,6 +1003,7 @@ async function guardarAnalisisEnSheets() {
 
   const resp = await callBridge("guardarAnalisis", {
     tienda: estado.tiendaSeleccionada,
+    centro: centrosDeTienda(estado.tiendaSeleccionada).join(","),
     fechaAnalisis: estado.fechaAnalisis,
     materiales: estado.resultadoFinal
   });
