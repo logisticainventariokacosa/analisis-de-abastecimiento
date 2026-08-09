@@ -147,6 +147,9 @@ function mostrarDashboard(analisis) {
   // Total de materiales con ventas (> 0)
   const totalMaterialesConVentas = materialesCache.filter(m => m.totalVentas > 0).length;
 
+  // Materiales que esta tienda necesita pedir, pero Kacosa no tiene stock suficiente para cubrir
+  const totalSinStockSuficienteKacosa = materialesCache.filter(m => m.aPedir > 0 && m.stockKacosa < m.aPedir).length;
+
   const porClase = { A: 0, B: 0, C: 0, D: 0 };
   materialesCache.forEach(m => { 
     const clase = (m.clase || '').toUpperCase();
@@ -201,6 +204,12 @@ function mostrarDashboard(analisis) {
             </span>
           ` : '—'}
         </div>
+      </div>
+      <!-- Tarjeta 6: Sin stock suficiente en Kacosa (ROJA) -->
+      <div class="kpi-card rojo">
+        <div class="kpi-icono"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="label">Sin stock suficiente en Kacosa</div>
+        <div class="valor">${totalSinStockSuficienteKacosa}</div>
       </div>
     </div>
     <div class="card">
