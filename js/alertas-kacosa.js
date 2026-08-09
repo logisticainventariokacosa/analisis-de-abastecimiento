@@ -355,6 +355,10 @@ function mostrarAlertas(alertas) {
   const sinStock = alertas.filter(a => a.tipo === "SIN_STOCK");
   const stockBajo = alertas.filter(a => a.tipo === "STOCK_BAJO");
 
+  // Total de códigos y de piezas que forman la solicitud de compras completa
+  const totalCodigosSolicitud = alertas.length;
+  const totalPiezasSolicitud = alertas.reduce((acc, a) => acc + (Number(a.proyeccionCompra) || 0), 0);
+
   // Asegurar que periodoDeAbastecimiento tenga el valor seleccionado
   const datosTabla = alertas.map(a => ({
     codigo: a.codigo,
@@ -381,6 +385,18 @@ function mostrarAlertas(alertas) {
           <div class="kpi-icono"><i class="fa-solid fa-boxes-stacked"></i></div>
           <div class="label">Stock insuficiente</div>
           <div class="valor">${stockBajo.length}</div>
+        </div>
+        <div class="kpi-card violeta">
+          <div class="kpi-icono"><i class="fa-solid fa-barcode"></i></div>
+          <div class="label">Total códigos por solicitud de compras</div>
+          <div class="valor">${totalCodigosSolicitud}</div>
+        </div>
+        <div class="kpi-card azul" style="background: linear-gradient(135deg, var(--blanco) 55%, #E8F0FE 130%);">
+          <div class="kpi-icono" style="background: linear-gradient(135deg, #4A6FA5, #2A4A7A); box-shadow: 0 4px 12px rgba(42, 74, 122, 0.35); color:#fff;">
+            <i class="fa-solid fa-boxes-packing"></i>
+          </div>
+          <div class="label">Total piezas por solicitud de compra</div>
+          <div class="valor">${totalPiezasSolicitud}</div>
         </div>
       </div>
       <div class="card">
