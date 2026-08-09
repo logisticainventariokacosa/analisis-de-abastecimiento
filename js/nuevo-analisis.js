@@ -14,6 +14,31 @@ import { leerXLSXGenerico, procesarPendientesSync, restarPendientesSync } from "
 
 const CENTROS_KACOSA = ["1000", "3000"];
 
+// Configuración de cada input de archivo (se usa al construir el formulario
+// y también para limpiarlo por completo con "Limpiar datos").
+const CONFIG_ARCHIVOS = [
+  { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas', validId: 'validacion-ventas', tipo: 'ventas', opcional: false },
+  { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda', validId: 'validacion-stock-tienda', tipo: 'stock', opcional: false },
+  { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa', validId: 'validacion-stock-kacosa', tipo: 'stock', opcional: false },
+  { id: 'na-notas-pendientes', nameId: 'file-name-notas-pendientes', statusId: 'file-status-notas-pendientes', wrapperId: 'file-wrapper-notas-pendientes', validId: 'validacion-notas-pendientes', tipo: 'notas', opcional: true },
+  { id: 'na-pendientes-sync', nameId: 'file-name-pendientes-sync', statusId: 'file-status-pendientes-sync', wrapperId: 'file-wrapper-pendientes-sync', validId: null, tipo: null, opcional: true }
+];
+
+// IDs de todos los campos del formulario que deben bloquearse mientras se procesa
+// un análisis (para evitar cargas o cambios a mitad de proceso).
+const IDS_CAMPOS_FORMULARIO = [
+  'na-tienda', 'na-ventas', 'na-stock-tienda', 'na-stock-kacosa',
+  'na-notas-pendientes', 'na-pendientes-sync', 'na-periodo', 'na-meses-cantidad', 'na-margen'
+];
+
+/** Bloquea o desbloquea todos los campos del formulario (archivos, período, margen, tienda). */
+function bloquearFormulario(bloquear) {
+  IDS_CAMPOS_FORMULARIO.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = bloquear;
+  });
+}
+
 // ============================================================
 //  SINCRONIZACIÓN CON SUPABASE (stock y movimientos)
 // ============================================================
@@ -248,10 +273,15 @@ function render() {
         </div>
       </div>
 
-      <!-- Botón Analizar -->
-      <button id="btn-analizar" class="btn-primario" style="margin-top:20px; min-width:200px">
-        <i class="fa-solid fa-bolt"></i> Analizar
-      </button>
+      <!-- Botón Analizar + Limpiar datos -->
+      <div class="btn-group" style="margin-top:20px">
+        <button id="btn-analizar" class="btn-primario" style="min-width:200px">
+          <i class="fa-solid fa-bolt"></i> Analizar
+        </button>
+        <button id="btn-limpiar-analisis" class="btn-secundario" style="display:none; min-width:180px">
+          <i class="fa-solid fa-broom"></i> Limpiar datos
+        </button>
+      </div>
       <p id="na-estado" class="estado-texto" style="margin-top:12px"></p>
     </div>
 
@@ -262,13 +292,7 @@ function render() {
   // ============================================================
   //  EVENTOS DE ARCHIVOS (CARGA + VALIDACIÓN DE COLUMNAS)
   // ============================================================
-  const fileInputs = [
-    { id: 'na-ventas', nameId: 'file-name-ventas', statusId: 'file-status-ventas', wrapperId: 'file-wrapper-ventas', validId: 'validacion-ventas', tipo: 'ventas' },
-    { id: 'na-stock-tienda', nameId: 'file-name-stock-tienda', statusId: 'file-status-stock-tienda', wrapperId: 'file-wrapper-stock-tienda', validId: 'validacion-stock-tienda', tipo: 'stock' },
-    { id: 'na-stock-kacosa', nameId: 'file-name-stock-kacosa', statusId: 'file-status-stock-kacosa', wrapperId: 'file-wrapper-stock-kacosa', validId: 'validacion-stock-kacosa', tipo: 'stock' },
-    { id: 'na-notas-pendientes', nameId: 'file-name-notas-pendientes', statusId: 'file-status-notas-pendientes', wrapperId: 'file-wrapper-notas-pendientes', validId: 'validacion-notas-pendientes', tipo: 'notas' },
-    { id: 'na-pendientes-sync', nameId: 'file-name-pendientes-sync', statusId: 'file-status-pendientes-sync', wrapperId: 'file-wrapper-pendientes-sync', validId: null, tipo: null }
-  ];
+  const fileInputs = CONFIG_ARCHIVOS;
 
   fileInputs.forEach(({ id, nameId, statusId, wrapperId, validId, tipo }) => {
     const input = document.getElementById(id);
@@ -344,6 +368,7 @@ function render() {
     document.getElementById("na-margen-valor").textContent = e.target.value + "%";
   });
   document.getElementById("btn-analizar").addEventListener("click", ejecutarAnalisis);
+  document.getElementById("btn-limpiar-analisis").addEventListener("click", limpiarAnalisis);
 }
 
 // ============================================================
@@ -394,6 +419,81 @@ function verificarArchivosValidos() {
 // ============================================================
 //  EJECUTAR ANÁLISIS (CON BLOQUEO DEL BOTÓN)
 // ============================================================
+/**
+ * Limpia archivos, indicadores visuales, resultados y estado interno,
+ * dejando el formulario listo para un análisis nuevo desde cero.
+ * Se usa al hacer clic en "Limpiar datos" (solo visible tras completar un análisis).
+ */
+function limpiarAnalisis() {
+  CONFIG_ARCHIVOS.forEach(({ id, nameId, statusId, wrapperId, validId, opcional }) => {
+    const input = document.getElementById(id);
+    const nameEl = document.getElementById(nameId);
+    const statusEl = document.getElementById(statusId);
+    const wrapper = document.getElementById(wrapperId);
+    const validEl = validId ? document.getElementById(validId) : null;
+
+    if (input) {
+      input.value = "";
+      delete input.dataset.valido;
+    }
+    if (nameEl) nameEl.textContent = "Seleccionar archivo";
+    if (statusEl) {
+      statusEl.textContent = opcional ? "Sin usar" : "Pendiente";
+      statusEl.className = "file-status empty";
+    }
+    if (wrapper) wrapper.classList.remove("loaded");
+    if (validEl) validEl.innerHTML = "";
+  });
+
+  // Restaura período y margen a sus valores por defecto
+  const periodoEl = document.getElementById("na-periodo");
+  if (periodoEl) periodoEl.value = "mes";
+  const mesesWrap = document.getElementById("na-meses-wrap");
+  if (mesesWrap) mesesWrap.style.display = "none";
+  const mesesEl = document.getElementById("na-meses-cantidad");
+  if (mesesEl) mesesEl.value = 2;
+  const margenEl = document.getElementById("na-margen");
+  if (margenEl) margenEl.value = 30;
+  const margenValorEl = document.getElementById("na-margen-valor");
+  if (margenValorEl) margenValorEl.textContent = "30%";
+
+  // Limpia resultados, duplicados y mensajes en pantalla
+  const duplicadosEl = document.getElementById("na-duplicados");
+  if (duplicadosEl) duplicadosEl.innerHTML = "";
+  const resultadosEl = document.getElementById("na-resultados");
+  if (resultadosEl) resultadosEl.innerHTML = "";
+  const estadoTexto = document.getElementById("na-estado");
+  if (estadoTexto) estadoTexto.textContent = "";
+
+  // Reinicia el estado interno para permitir un análisis nuevo
+  estado.ventasProcesadas = null;
+  estado.stockTienda = null;
+  estado.stockKacosa = null;
+  estado.notasPendientes = null;
+  estado.clustersCandidatos = [];
+  estado.gruposGemini = [];
+  estado.resultadoFinal = null;
+  estado.fechaAnalisis = null;
+  estado.grupos = null;
+  estado.sinRotacion = null;
+  estado.sugerencias = null;
+  estado.periodo = null;
+  estado.mesesCantidad = null;
+  estado.margenPct = null;
+  estado.analisisCompleto = null;
+  estado.analizando = false;
+
+  // Reactiva el formulario y el botón Analizar; oculta "Limpiar datos"
+  bloquearFormulario(false);
+  const btnAnalizar = document.getElementById("btn-analizar");
+  if (btnAnalizar) {
+    btnAnalizar.disabled = false;
+    btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
+  }
+  const btnLimpiar = document.getElementById("btn-limpiar-analisis");
+  if (btnLimpiar) btnLimpiar.style.display = "none";
+}
+
 async function ejecutarAnalisis() {
   if (estado.analizando) {
     document.getElementById("na-estado").innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Ya hay un análisis en progreso. Espera a que termine.';
@@ -436,6 +536,7 @@ async function ejecutarAnalisis() {
     const btnAnalizar = document.getElementById("btn-analizar");
     btnAnalizar.disabled = true;
     btnAnalizar.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Analizando...';
+    bloquearFormulario(true);
 
     estadoTexto.textContent = "Leyendo archivo de ventas...";
     const filasVentas = parsearMHT(await archivoVentas.text());
@@ -452,6 +553,7 @@ async function ejecutarAnalisis() {
       estadoTexto.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + errorValidacion;
       btnAnalizar.disabled = false;
       btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
+      bloquearFormulario(false);
       estado.analizando = false;
       return;
     }
@@ -476,6 +578,7 @@ async function ejecutarAnalisis() {
         estadoTexto.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> ' + errorNotas;
         btnAnalizar.disabled = false;
         btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
+        bloquearFormulario(false);
         estado.analizando = false;
         return;
       }
@@ -540,6 +643,7 @@ async function ejecutarAnalisis() {
     const btnAnalizar = document.getElementById("btn-analizar");
     btnAnalizar.disabled = false;
     btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
+    bloquearFormulario(false);
     estado.analizando = false;
   }
 }
@@ -721,7 +825,7 @@ async function finalizarCalculo(gruposConfirmados) {
 
   // Auto-guardado
   const estadoAcciones = document.getElementById("na-estado-acciones");
-  if (estadoAcciones) estadoAcciones.textContent = "Guardando automáticamente en Google Sheets...";
+  if (estadoAcciones) estadoAcciones.textContent = "Guardando...";
   const respGuardado = await callBridge("guardarAnalisis", {
     tienda: estado.tiendaSeleccionada,
     centro: centrosDeTienda(estado.tiendaSeleccionada).join(","),
@@ -730,28 +834,32 @@ async function finalizarCalculo(gruposConfirmados) {
   });
   if (estadoAcciones) {
     estadoAcciones.innerHTML = respGuardado.ok
-      ? `<i class="fa-solid fa-circle-check"></i> Guardado automáticamente en Google Sheets. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
+      ? `<i class="fa-solid fa-circle-check"></i> Guardado correctamente. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
       : '<i class="fa-solid fa-triangle-exclamation"></i> No se pudo guardar automáticamente: ' + respGuardado.error;
   }
 
   const totalAPedirNotif = estado.grupos?.pedido?.reduce((acc, m) => acc + (m.aPedir || 0), 0) || 0;
   if (respGuardado.ok) {
     notificarExito(
-      `Se procesaron ${resultado.length} material(es) — ${totalAPedirNotif} unidades a pedir. El análisis quedó guardado automáticamente en Google Sheets.`,
+      `Se procesaron ${resultado.length} material(es) — ${totalAPedirNotif} unidades a pedir. El análisis quedó guardado correctamente.`,
       { titulo: "Análisis completado" }
     );
   } else {
     notificarExito(
-      `El análisis se calculó correctamente, pero hubo un problema al guardarlo en Sheets: ${respGuardado.error}. Puedes intentar "Volver a guardar" más abajo.`,
+      `El análisis se calculó correctamente, pero hubo un problema al guardarlo: ${respGuardado.error}.`,
       { titulo: "Análisis completado con advertencia", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 }
     );
   }
 
   document.dispatchEvent(new CustomEvent("kacosa:analisis-listo", { detail: window.KACOSA.ultimoAnalisis }));
 
+  // No se reactiva el formulario: hay que evitar que el usuario vuelva a darle a
+  // "Analizar" con los mismos archivos y duplique datos en Supabase. Se deja
+  // visible el botón "Limpiar datos" para que pueda iniciar un análisis nuevo.
   const btnAnalizar = document.getElementById("btn-analizar");
-  btnAnalizar.disabled = false;
-  btnAnalizar.innerHTML = '<i class="fa-solid fa-bolt"></i> Analizar';
+  btnAnalizar.innerHTML = '<i class="fa-solid fa-circle-check"></i> Análisis completado';
+  const btnLimpiar = document.getElementById("btn-limpiar-analisis");
+  if (btnLimpiar) btnLimpiar.style.display = "";
   estado.analizando = false;
 }
 
@@ -824,7 +932,6 @@ function mostrarResultados(resultado, sugerencias) {
 
       <div class="btn-group">
         <button id="btn-descargar-excel" class="btn-primario"><i class="fa-solid fa-download"></i> Descargar Excel</button>
-        <button id="btn-guardar-analisis" class="btn-secundario"><i class="fa-solid fa-arrows-rotate"></i> Volver a guardar</button>
         <button id="btn-enviar-correo" class="btn-secundario"><i class="fa-solid fa-envelope"></i> Enviar por correo</button>
       </div>
       <p id="na-estado-acciones" class="estado-texto" style="margin-top:10px"></p>
@@ -863,7 +970,6 @@ function mostrarResultados(resultado, sugerencias) {
   });
 
   document.getElementById("btn-descargar-excel").addEventListener("click", descargarExcelUnificado);
-  document.getElementById("btn-guardar-analisis").addEventListener("click", guardarAnalisisEnSheets);
   document.getElementById("btn-enviar-correo").addEventListener("click", enviarCorreo);
 }
 
@@ -997,28 +1103,6 @@ function clasificarEnCuatroGrupos(resultado, sugerencias) {
 // ============================================================
 //  GUARDAR, ENVIAR Y DESCARGAR
 // ============================================================
-async function guardarAnalisisEnSheets() {
-  const estadoAcciones = document.getElementById("na-estado-acciones");
-  estadoAcciones.textContent = "Guardando en Google Sheets...";
-
-  const resp = await callBridge("guardarAnalisis", {
-    tienda: estado.tiendaSeleccionada,
-    centro: centrosDeTienda(estado.tiendaSeleccionada).join(","),
-    fechaAnalisis: estado.fechaAnalisis,
-    materiales: estado.resultadoFinal
-  });
-
-  estadoAcciones.textContent = resp.ok
-    ? `Guardado correctamente. ${resp.altaRotacionAgregados > 0 ? `(${resp.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
-    : "Error al guardar: " + resp.error;
-
-  if (resp.ok) {
-    notificarExito("El análisis se volvió a guardar correctamente en Google Sheets.", { titulo: "Guardado" });
-  } else {
-    notificarExito("No se pudo guardar: " + resp.error, { titulo: "Error", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
-  }
-}
-
 async function enviarCorreo() {
   const estadoAcciones = document.getElementById("na-estado-acciones");
   estadoAcciones.textContent = "Preparando el archivo...";
