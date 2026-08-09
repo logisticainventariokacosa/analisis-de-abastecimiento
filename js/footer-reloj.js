@@ -26,3 +26,39 @@ function actualizarReloj() {
 
 actualizarReloj();
 setInterval(actualizarReloj, 1000);
+
+// ============================================================
+//  AUTO-OCULTAR EL FOOTER AL HACER SCROLL
+//  Se oculta al bajar, reaparece al subir o al llegar arriba del todo.
+// ============================================================
+(function inicializarAutoOcultarFooter() {
+  const footer = document.getElementById("app-footer");
+  if (!footer) return;
+
+  let ultimoScrollY = window.scrollY;
+  let ticking = false;
+
+  function actualizarVisibilidad() {
+    const scrollActual = window.scrollY;
+    const bajando = scrollActual > ultimoScrollY;
+    const margenSuperior = 40; // no ocultar cerca del tope de la página
+
+    if (scrollActual <= margenSuperior) {
+      footer.classList.remove("app-footer--oculto");
+    } else if (bajando) {
+      footer.classList.add("app-footer--oculto");
+    } else {
+      footer.classList.remove("app-footer--oculto");
+    }
+
+    ultimoScrollY = scrollActual;
+    ticking = false;
+  }
+
+  window.addEventListener("scroll", () => {
+    if (!ticking) {
+      window.requestAnimationFrame(actualizarVisibilidad);
+      ticking = true;
+    }
+  }, { passive: true });
+})();
