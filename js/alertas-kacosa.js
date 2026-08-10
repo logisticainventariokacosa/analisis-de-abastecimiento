@@ -665,11 +665,25 @@ function construirWorkbookAlertas_(alertas) {
 }
 
 function descargarAlertasExcel(alertas) {
-  const { wb, filas } = construirWorkbookAlertas_(alertas);
+  const btn = document.getElementById("btn-descargar-alertas");
+  try {
+    const { wb, filas } = construirWorkbookAlertas_(alertas);
 
-  const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
-  XLSX.writeFile(wb, `Alertas_Kacosa_${fecha}.xlsx`);
-  notificarExito(`Se descargó el Excel con ${filas.length} alerta(s) y proyección de compra por tienda.`, { titulo: "Excel descargado" });
+    const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
+    XLSX.writeFile(wb, `Alertas_Kacosa_${fecha}.xlsx`);
+    notificarExito(`Se descargó el Excel con ${filas.length} alerta(s) y proyección de compra por tienda.`, { titulo: "Excel descargado" });
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Archivo descargado correctamente';
+    }
+  } catch (err) {
+    console.error(err);
+    notificarExito("No se pudo descargar el archivo: " + err.message, { titulo: "Error al descargar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-download"></i> Descargar Excel';
+    }
+  }
 }
 
 /**
@@ -678,40 +692,61 @@ function descargarAlertasExcel(alertas) {
  * en el Apps Script y el correo del usuario de la sesión actual.
  */
 async function enviarCorreoAlertas(alertas) {
+  const btn = document.getElementById("btn-enviar-correo-alertas");
   const estado = document.getElementById("estado-alertas");
-  if (estado) estado.textContent = "Preparando el archivo...";
 
-  const { wb, filas, sinStock, stockBajo, totalProyeccion } = construirWorkbookAlertas_(alertas);
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+    }
+    if (estado) estado.textContent = "Preparando el archivo...";
 
-  const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
-  const archivos = [{
-    nombre: `Alertas_Kacosa_${fecha}.xlsx`,
-    base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
-  }];
+    const { wb, filas, sinStock, stockBajo, totalProyeccion } = construirWorkbookAlertas_(alertas);
 
-  if (estado) estado.textContent = "Enviando correo...";
+    const fecha = new Date().toLocaleDateString("es-VE").replace(/\//g, "-");
+    const archivos = [{
+      nombre: `Alertas_Kacosa_${fecha}.xlsx`,
+      base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
+    }];
 
-  const resp = await callBridge("sendReport", {
-    tipoReporte: "alertasKacosa",
-    fechaReporte: new Date().toLocaleDateString("es-VE"),
-    periodoDeAbastecimiento: filas[0]?.periodoDeAbastecimiento || `${periodoSeleccionado} mes(es)`,
-    resumen: {
-      totalAlertas: filas.length,
-      sinStock,
-      stockBajo,
-      totalProyeccion
-    },
-    destinatariosAdicionales: ["compras.nacionales@kacosa.com", "compras.internacionales@kacosa.com"],
-    usuarioEmail: window.KACOSA?.usuario?.email || "",
-    archivos
-  });
+    if (estado) estado.textContent = "Enviando correo...";
 
-  if (estado) estado.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
+    const resp = await callBridge("sendReport", {
+      tipoReporte: "alertasKacosa",
+      fechaReporte: new Date().toLocaleDateString("es-VE"),
+      periodoDeAbastecimiento: filas[0]?.periodoDeAbastecimiento || `${periodoSeleccionado} mes(es)`,
+      resumen: {
+        totalAlertas: filas.length,
+        sinStock,
+        stockBajo,
+        totalProyeccion
+      },
+      destinatariosAdicionales: ["compras.nacionales@kacosa.com", "compras.internacionales@kacosa.com"],
+      usuarioEmail: window.KACOSA?.usuario?.email || "",
+      archivos
+    });
 
-  if (resp.ok) {
-    notificarExito("El correo con las Alertas Kacosa se envió correctamente a Compras Nacionales.", { titulo: "Correo enviado" });
-  } else {
-    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+    if (estado) estado.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
+
+    if (resp.ok) {
+      notificarExito("El correo con las Alertas Kacosa se envió correctamente a Compras Nacionales.", { titulo: "Correo enviado" });
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Correo enviado con éxito';
+    } else {
+      notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-envelope"></i> Enviar por correo';
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    if (estado) estado.textContent = "Error al enviar: " + err.message;
+    notificarExito("No se pudo enviar el correo: " + err.message, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-envelope"></i> Enviar por correo';
+    }
   }
 }
 
