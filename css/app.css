@@ -816,6 +816,29 @@ tbody tr:hover {
   border-color: var(--borde-focus);
 }
 
+.btn-periodo:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Campo "Otro" de período de abastecimiento en Alertas Kacosa: sin flechitas de número */
+#periodo-personalizado::-webkit-outer-spin-button,
+#periodo-personalizado::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#periodo-personalizado {
+  -moz-appearance: textfield;
+}
+#periodo-personalizado-wrap:focus-within {
+  border-color: var(--azul-base);
+  background: #E8F0FE;
+}
+#periodo-personalizado:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* --- Estado --- */
 .estado-texto {
   color: var(--texto-secundario);
