@@ -1,6 +1,7 @@
 // js/nuevo-analisis.js
 import { parsearMHT, aNumero } from "./mht-parser.js";
 import { procesarVentas } from "./ventas-parser.js";
+import { cargarFactoresConversion } from "./factores-conversion.js";
 import { agruparStock, procesarNotasPendientes } from "./stock-parser.js";
 import { cargarPaquetes } from "./paquetes.js";
 import { calcularAbastecimiento } from "./calculo-abastecimiento.js";
@@ -558,6 +559,7 @@ async function ejecutarAnalisis() {
       return;
     }
 
+    await cargarFactoresConversion(); // trae desde Supabase el contenido de empaque/caja por material
     const ventasProcesadas = procesarVentas(filasVentas);
     const stockTienda = agruparStock(filasStockTienda, centrosValidos);
     const stockKacosa = agruparStock(filasStockKacosa, CENTROS_KACOSA);
