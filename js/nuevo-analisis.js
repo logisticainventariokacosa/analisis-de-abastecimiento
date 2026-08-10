@@ -1124,37 +1124,58 @@ function clasificarEnCuatroGrupos(resultado, sugerencias) {
 //  GUARDAR, ENVIAR Y DESCARGAR
 // ============================================================
 async function enviarCorreo() {
+  const btn = document.getElementById("btn-enviar-correo");
   const estadoAcciones = document.getElementById("na-estado-acciones");
-  estadoAcciones.textContent = "Preparando el archivo...";
 
-  const wb = construirWorkbookCompleto();
-  const archivos = [{
-    nombre: `Analisis_${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}.xlsx`,
-    base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
-  }];
+  try {
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Enviando...';
+    }
+    estadoAcciones.textContent = "Preparando el archivo...";
 
-  const totalAPedir = estado.grupos.pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
+    const wb = construirWorkbookCompleto();
+    const archivos = [{
+      nombre: `Analisis_${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}.xlsx`,
+      base64: XLSX.write(wb, { type: "base64", bookType: "xlsx" })
+    }];
 
-  estadoAcciones.textContent = "Enviando correo...";
-  const resp = await callBridge("sendReport", {
-    tipoReporte: "analisis",
-    tienda: estado.tiendaSeleccionada,
-    fechaAnalisis: estado.fechaAnalisis,
-    resumen: {
-      totalAPedir,
-      valorEstimado: totalAPedir,
-      quiebresKacosa: estado.grupos.pendienteStock.length
-    },
-    usuarioEmail: window.KACOSA?.usuario?.email || "",
-    archivos
-  });
+    const totalAPedir = estado.grupos.pedido.reduce((acc, m) => acc + (m.aPedir || 0), 0);
 
-  estadoAcciones.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
+    estadoAcciones.textContent = "Enviando correo...";
+    const resp = await callBridge("sendReport", {
+      tipoReporte: "analisis",
+      tienda: estado.tiendaSeleccionada,
+      fechaAnalisis: estado.fechaAnalisis,
+      resumen: {
+        totalAPedir,
+        valorEstimado: totalAPedir,
+        quiebresKacosa: estado.grupos.pendienteStock.length
+      },
+      usuarioEmail: window.KACOSA?.usuario?.email || "",
+      archivos
+    });
 
-  if (resp.ok) {
-    notificarExito("El correo con el archivo Excel (Resumen + 5 pestañas) se envió correctamente al departamento de Abastecimiento.", { titulo: "Correo enviado" });
-  } else {
-    notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+    estadoAcciones.textContent = resp.ok ? resp.mensaje : "Error al enviar: " + resp.error;
+
+    if (resp.ok) {
+      notificarExito("El correo con el archivo Excel (Resumen + 5 pestañas) se envió correctamente al departamento de Abastecimiento.", { titulo: "Correo enviado" });
+      if (btn) btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Correo enviado con éxito';
+    } else {
+      notificarExito("No se pudo enviar el correo: " + resp.error, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-envelope"></i> Enviar por correo';
+      }
+    }
+  } catch (err) {
+    console.error(err);
+    estadoAcciones.textContent = "Error al enviar: " + err.message;
+    notificarExito("No se pudo enviar el correo: " + err.message, { titulo: "Error al enviar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-envelope"></i> Enviar por correo';
+    }
   }
 }
 
@@ -1252,9 +1273,23 @@ function construirWorkbookCompleto() {
 }
 
 function descargarExcelUnificado() {
-  const base = `${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}`;
-  XLSX.writeFile(construirWorkbookCompleto(), `Analisis_${base}.xlsx`);
-  notificarExito("El archivo Excel con las 6 pestañas (Resumen + 5 reportes) se descargó correctamente.", { titulo: "Excel descargado" });
+  const btn = document.getElementById("btn-descargar-excel");
+  try {
+    const base = `${estado.tiendaSeleccionada}_${estado.fechaAnalisis.replace(/\//g, "-")}`;
+    XLSX.writeFile(construirWorkbookCompleto(), `Analisis_${base}.xlsx`);
+    notificarExito("El archivo Excel con las 6 pestañas (Resumen + 5 reportes) se descargó correctamente.", { titulo: "Excel descargado" });
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-check"></i> Archivo descargado correctamente';
+    }
+  } catch (err) {
+    console.error(err);
+    notificarExito("No se pudo descargar el archivo: " + err.message, { titulo: "Error al descargar", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 });
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-download"></i> Descargar Excel';
+    }
+  }
 }
 
 document.addEventListener("kacosa:vista-cambiada", (e) => {
