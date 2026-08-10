@@ -51,11 +51,19 @@ function render() {
 
       <div style="margin-top:16px">
         <label class="form-label">Período de abastecimiento</label>
-        <div style="display:flex; gap:10px; flex-wrap:wrap">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center">
           <button class="btn-periodo activo" data-meses="1" style="padding:8px 20px; border:2px solid var(--borde); border-radius:var(--radio-peq); background:var(--azul-base); color:#fff; cursor:pointer; font-weight:600">1 Mes</button>
           <button class="btn-periodo" data-meses="2" style="padding:8px 20px; border:2px solid var(--borde); border-radius:var(--radio-peq); background:var(--blanco); color:var(--texto-principal); cursor:pointer; font-weight:600">2 Meses</button>
           <button class="btn-periodo" data-meses="3" style="padding:8px 20px; border:2px solid var(--borde); border-radius:var(--radio-peq); background:var(--blanco); color:var(--texto-principal); cursor:pointer; font-weight:600">3 Meses</button>
+          <div id="periodo-personalizado-wrap" style="display:flex; align-items:center; gap:8px; padding:7px 16px; border:2px solid var(--borde); border-radius:var(--radio-peq); background:var(--blanco); transition:border-color 0.15s, background 0.15s">
+            <input type="number" id="periodo-personalizado" inputmode="numeric" min="1" max="12" step="1" placeholder="Otro"
+              style="width:34px; border:none; outline:none; font-weight:600; font-size:14px; color:var(--texto-principal); background:transparent; text-align:center; padding:0" />
+            <span style="font-size:13px; color:var(--texto-secundario); font-weight:600">mes(es)</span>
+          </div>
         </div>
+        <p id="periodo-personalizado-error" style="color:var(--rojo-alerta); font-size:12px; margin:6px 0 0; display:none">
+          <i class="fa-solid fa-triangle-exclamation"></i> Ingresa un número entero entre 1 y 12.
+        </p>
       </div>
 
       <div class="btn-group" style="margin-top:16px">
@@ -87,8 +95,76 @@ function render() {
       this.style.color = '#fff';
       this.style.borderColor = 'var(--azul-base)';
       periodoSeleccionado = parseInt(this.dataset.meses);
+
+      // Si el usuario había escrito un período personalizado, se limpia al elegir un preset
+      const inputPersonalizado = document.getElementById('periodo-personalizado');
+      const wrapPersonalizado = document.getElementById('periodo-personalizado-wrap');
+      const errorPersonalizado = document.getElementById('periodo-personalizado-error');
+      if (inputPersonalizado) inputPersonalizado.value = '';
+      if (wrapPersonalizado) {
+        wrapPersonalizado.style.borderColor = 'var(--borde)';
+        wrapPersonalizado.style.background = 'var(--blanco)';
+      }
+      if (errorPersonalizado) errorPersonalizado.style.display = 'none';
     });
   });
+
+  // Campo de período personalizado: solo enteros del 1 al 12
+  const inputPersonalizado = document.getElementById('periodo-personalizado');
+  const wrapPersonalizado = document.getElementById('periodo-personalizado-wrap');
+  const errorPersonalizado = document.getElementById('periodo-personalizado-error');
+  if (inputPersonalizado) {
+    inputPersonalizado.addEventListener('input', function() {
+      // Solo dígitos, sin decimales ni signos, máximo 2 caracteres (el tope es 12)
+      const limpio = this.value.replace(/\D/g, '').slice(0, 2);
+      if (this.value !== limpio) this.value = limpio;
+
+      if (errorPersonalizado) errorPersonalizado.style.display = 'none';
+      if (wrapPersonalizado) wrapPersonalizado.style.borderColor = 'var(--borde)';
+
+      if (limpio === '') return; // el usuario está borrando, no se toca la selección todavía
+
+      let n = parseInt(limpio, 10);
+      if (n > 12) {
+        n = 12;
+        this.value = '12';
+      }
+      if (n < 1) return; // "0" solo: esperar a que termine de escribir o corrija al salir del campo
+
+      // Se activa como selección: desmarca los botones preestablecidos
+      document.querySelectorAll('.btn-periodo').forEach(b => {
+        b.classList.remove('activo');
+        b.style.background = 'var(--blanco)';
+        b.style.color = 'var(--texto-principal)';
+        b.style.borderColor = 'var(--borde)';
+      });
+      if (wrapPersonalizado) {
+        wrapPersonalizado.style.borderColor = 'var(--azul-base)';
+        wrapPersonalizado.style.background = '#E8F0FE';
+      }
+      periodoSeleccionado = n;
+    });
+
+    inputPersonalizado.addEventListener('blur', function() {
+      if (this.value === '' || parseInt(this.value, 10) < 1) {
+        this.value = '';
+        if (wrapPersonalizado) {
+          wrapPersonalizado.style.borderColor = 'var(--borde)';
+          wrapPersonalizado.style.background = 'var(--blanco)';
+        }
+        if (errorPersonalizado) errorPersonalizado.style.display = this.dataset.tocado ? 'block' : 'none';
+        // Si no quedó ningún preset activo, vuelve a "1 Mes" por defecto
+        if (!document.querySelector('.btn-periodo.activo')) {
+          const btn1 = document.querySelector('.btn-periodo[data-meses="1"]');
+          if (btn1) btn1.click();
+        }
+      }
+    });
+
+    inputPersonalizado.addEventListener('focus', function() {
+      this.dataset.tocado = '1';
+    });
+  }
 
   setupFileInput();
 
@@ -263,6 +339,8 @@ function bloquearFormularioKacosa(bloquear) {
   const input = document.getElementById("input-stock-kacosa");
   if (input) input.disabled = bloquear;
   document.querySelectorAll(".btn-periodo").forEach(btn => { btn.disabled = bloquear; });
+  const personalizado = document.getElementById("periodo-personalizado");
+  if (personalizado) personalizado.disabled = bloquear;
 }
 
 /** Limpia el archivo cargado y los resultados, dejando el módulo listo para un análisis nuevo. */
@@ -284,6 +362,25 @@ function limpiarAlertasKacosa() {
 
   archivoValido = false;
   filasCache = null;
+
+  // Restablece el período de abastecimiento a "1 Mes" por defecto
+  const inputPersonalizado = document.getElementById("periodo-personalizado");
+  const wrapPersonalizado = document.getElementById("periodo-personalizado-wrap");
+  const errorPersonalizado = document.getElementById("periodo-personalizado-error");
+  if (inputPersonalizado) { inputPersonalizado.value = ""; delete inputPersonalizado.dataset.tocado; }
+  if (wrapPersonalizado) {
+    wrapPersonalizado.style.borderColor = "var(--borde)";
+    wrapPersonalizado.style.background = "var(--blanco)";
+  }
+  if (errorPersonalizado) errorPersonalizado.style.display = "none";
+  document.querySelectorAll(".btn-periodo").forEach(b => {
+    const esUno = b.dataset.meses === "1";
+    b.classList.toggle("activo", esUno);
+    b.style.background = esUno ? "var(--azul-base)" : "var(--blanco)";
+    b.style.color = esUno ? "#fff" : "var(--texto-principal)";
+    b.style.borderColor = esUno ? "var(--azul-base)" : "var(--borde)";
+  });
+  periodoSeleccionado = 1;
 
   const resultado = document.getElementById("resultado-alertas");
   if (resultado) resultado.innerHTML = "";
