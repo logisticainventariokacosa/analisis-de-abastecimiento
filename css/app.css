@@ -316,7 +316,7 @@ body {
 /* --- Tarjetas KPI --- */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(6, 1fr); 
   gap: 16px;
   margin-bottom: 28px;
 }
@@ -851,7 +851,7 @@ tbody tr:hover {
   .vistas-wrap { padding: 16px; }
   
   .kpi-grid {
-    grid-template-columns: 1fr 1fr;
+   grid-template-columns: 1fr 1fr; 
     gap: 10px;
   }
   
