@@ -1088,6 +1088,20 @@ tbody tr:hover {
   color: var(--ambar);
 }
 
+#chat-manos-libres-toggle.activo {
+  color: var(--verde-kpi);
+  animation: pulso-manos-libres 1.8s ease-in-out infinite;
+}
+
+#chat-manos-libres-toggle.activo:hover {
+  color: var(--verde-kpi);
+}
+
+@keyframes pulso-manos-libres {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
 .chat-mensajes {
   flex: 1;
   overflow-y: auto;
@@ -1113,16 +1127,24 @@ tbody tr:hover {
   border: 1px solid var(--borde);
   align-self: flex-start;
   color: var(--texto-principal);
-  position: relative;
-  padding-right: 34px;
+}
+
+.chat-msg-texto {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.chat-msg-acciones {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .chat-msg-escuchar {
-  position: absolute;
-  right: 8px;
-  bottom: 6px;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border: none;
   border-radius: 50%;
   background: var(--fondo);
@@ -1141,10 +1163,32 @@ tbody tr:hover {
   color: #fff;
 }
 
+.chat-msg-descargar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid var(--verde-kpi);
+  border-radius: var(--radio-peq);
+  background: rgba(47, 143, 110, 0.08);
+  color: var(--verde-kpi);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transicion);
+}
+
+.chat-msg-descargar:hover {
+  background: var(--verde-kpi);
+  color: #fff;
+}
+
 .chat-msg-usuario {
   background: var(--azul-base);
   color: #fff;
   align-self: flex-end;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
 .chat-cargando { 
