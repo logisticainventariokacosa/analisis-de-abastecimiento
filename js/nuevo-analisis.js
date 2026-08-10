@@ -819,48 +819,68 @@ async function finalizarCalculo(gruposConfirmados) {
     sugerencias
   };
 
-  estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsadosRedondeado} meses (${semanasUsadasRedondeado} semanas).`;
+  // Se guarda ANTES de mostrar los resultados en pantalla. Si el guardado falla,
+  // NO se muestran los resultados: se deja un botón para reintentar solo el
+  // guardado (sin recalcular nada) hasta que quede guardado correctamente.
+  async function intentarGuardarYMostrar() {
+    estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Guardando en la base de datos...`;
+    const resultadosDiv = document.getElementById("na-resultados");
+    if (resultadosDiv) resultadosDiv.innerHTML = "";
 
-  mostrarResultados(resultado, sugerencias);
+    const respGuardado = await callBridge("guardarAnalisis", {
+      tienda: estado.tiendaSeleccionada,
+      centro: centrosDeTienda(estado.tiendaSeleccionada).join(","),
+      fechaAnalisis: estado.fechaAnalisis,
+      materiales: estado.resultadoFinal
+    });
 
-  // Auto-guardado
-  const estadoAcciones = document.getElementById("na-estado-acciones");
-  if (estadoAcciones) estadoAcciones.textContent = "Guardando...";
-  const respGuardado = await callBridge("guardarAnalisis", {
-    tienda: estado.tiendaSeleccionada,
-    centro: centrosDeTienda(estado.tiendaSeleccionada).join(","),
-    fechaAnalisis: estado.fechaAnalisis,
-    materiales: estado.resultadoFinal
-  });
-  if (estadoAcciones) {
-    estadoAcciones.innerHTML = respGuardado.ok
-      ? `<i class="fa-solid fa-circle-check"></i> Guardado correctamente. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`
-      : '<i class="fa-solid fa-triangle-exclamation"></i> No se pudo guardar automáticamente: ' + respGuardado.error;
-  }
+    if (!respGuardado.ok) {
+      estadoTexto.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> No se pudo guardar el análisis: ' + respGuardado.error;
+      if (resultadosDiv) {
+        resultadosDiv.innerHTML = `
+          <div class="card" style="text-align:center">
+            <p class="vista-sub" style="color:var(--rojo-alerta); margin-top:0">
+              <i class="fa-solid fa-triangle-exclamation"></i> No se pudo guardar el análisis en la base de datos.
+              Los resultados no se muestran hasta que quede guardado correctamente.
+            </p>
+            <button id="btn-reintentar-guardado" class="btn-primario" style="margin-top:8px">
+              <i class="fa-solid fa-arrows-rotate"></i> Reintentar guardar y generar
+            </button>
+          </div>
+        `;
+        document.getElementById("btn-reintentar-guardado").addEventListener("click", intentarGuardarYMostrar);
+      }
+      return; // se queda esperando a que el usuario reintente; el formulario sigue bloqueado
+    }
 
-  const totalAPedirNotif = estado.grupos?.pedido?.reduce((acc, m) => acc + (m.aPedir || 0), 0) || 0;
-  if (respGuardado.ok) {
+    // Guardado con éxito: recién ahora se muestran los resultados
+    estadoTexto.textContent = `Análisis completo — ${resultado.length} material(es) procesados. Período usado: ${mesesUsadosRedondeado} meses (${semanasUsadasRedondeado} semanas).`;
+    mostrarResultados(resultado, sugerencias);
+
+    const estadoAcciones = document.getElementById("na-estado-acciones");
+    if (estadoAcciones) {
+      estadoAcciones.innerHTML = `<i class="fa-solid fa-circle-check"></i> Guardado correctamente. ${respGuardado.altaRotacionAgregados > 0 ? `(${respGuardado.altaRotacionAgregados} nuevo(s) en Alta Rotación)` : ""}`;
+    }
+
+    const totalAPedirNotif = estado.grupos?.pedido?.reduce((acc, m) => acc + (m.aPedir || 0), 0) || 0;
     notificarExito(
       `Se procesaron ${resultado.length} material(es) — ${totalAPedirNotif} unidades a pedir. El análisis quedó guardado correctamente.`,
       { titulo: "Análisis completado" }
     );
-  } else {
-    notificarExito(
-      `El análisis se calculó correctamente, pero hubo un problema al guardarlo: ${respGuardado.error}.`,
-      { titulo: "Análisis completado con advertencia", icono: '<i class="fa-solid fa-triangle-exclamation"></i>', segundos: 6 }
-    );
+
+    document.dispatchEvent(new CustomEvent("kacosa:analisis-listo", { detail: window.KACOSA.ultimoAnalisis }));
+
+    // No se reactiva el formulario: hay que evitar que el usuario vuelva a darle a
+    // "Analizar" con los mismos archivos y duplique datos en Supabase. Se deja
+    // visible el botón "Limpiar datos" para que pueda iniciar un análisis nuevo.
+    const btnAnalizar = document.getElementById("btn-analizar");
+    if (btnAnalizar) btnAnalizar.innerHTML = '<i class="fa-solid fa-circle-check"></i> Análisis completado';
+    const btnLimpiar = document.getElementById("btn-limpiar-analisis");
+    if (btnLimpiar) btnLimpiar.style.display = "";
+    estado.analizando = false;
   }
 
-  document.dispatchEvent(new CustomEvent("kacosa:analisis-listo", { detail: window.KACOSA.ultimoAnalisis }));
-
-  // No se reactiva el formulario: hay que evitar que el usuario vuelva a darle a
-  // "Analizar" con los mismos archivos y duplique datos en Supabase. Se deja
-  // visible el botón "Limpiar datos" para que pueda iniciar un análisis nuevo.
-  const btnAnalizar = document.getElementById("btn-analizar");
-  btnAnalizar.innerHTML = '<i class="fa-solid fa-circle-check"></i> Análisis completado';
-  const btnLimpiar = document.getElementById("btn-limpiar-analisis");
-  if (btnLimpiar) btnLimpiar.style.display = "";
-  estado.analizando = false;
+  await intentarGuardarYMostrar();
 }
 
 // ============================================================
