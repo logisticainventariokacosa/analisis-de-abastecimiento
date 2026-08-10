@@ -24,7 +24,10 @@ function construirUI() {
           <div class="chat-subtitulo" id="chat-contexto-info">Hola</div>
         </div>
       </div>
-      <button id="chat-cerrar" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      <div class="chat-header-acciones">
+        <button id="chat-voz-toggle" title="Leer respuestas en voz alta"><i class="fa-solid fa-volume-xmark"></i></button>
+        <button id="chat-cerrar" aria-label="Cerrar"><i class="fa-solid fa-xmark"></i></button>
+      </div>
     </div>
     <div class="chat-mensajes" id="chat-mensajes">
       <div class="chat-msg chat-msg-agente">
@@ -32,6 +35,7 @@ function construirUI() {
       </div>
     </div>
     <form id="chat-form" class="chat-form">
+      <button type="button" id="chat-mic-btn" title="Hablar" style="display:none"><i class="fa-solid fa-microphone"></i></button>
       <input type="text" id="chat-input" placeholder="Escribe tu pregunta..." autocomplete="off">
       <button type="submit"><i class="fa-solid fa-paper-plane"></i></button>
     </form>
@@ -41,6 +45,97 @@ function construirUI() {
   boton.addEventListener("click", () => alternarPanel(true));
   document.getElementById("chat-cerrar").addEventListener("click", () => alternarPanel(false));
   document.getElementById("chat-form").addEventListener("submit", enviarPregunta);
+
+  inicializarVoz();
+}
+
+// ============================================================
+//  VOZ: hablarle al agente (reconocimiento de voz) y que responda
+//  hablado (texto a voz). Usa la Web Speech API del navegador,
+//  no requiere backend ni configuración adicional.
+// ============================================================
+let vozActivada = localStorage.getItem("kacosa-chat-voz") === "1";
+let reconocimiento = null;
+let escuchando = false;
+
+function inicializarVoz() {
+  // --- Texto a voz (leer las respuestas del agente) ---
+  const btnVoz = document.getElementById("chat-voz-toggle");
+  if (window.speechSynthesis && btnVoz) {
+    actualizarIconoVoz();
+    btnVoz.addEventListener("click", () => {
+      vozActivada = !vozActivada;
+      localStorage.setItem("kacosa-chat-voz", vozActivada ? "1" : "0");
+      actualizarIconoVoz();
+      if (!vozActivada) window.speechSynthesis.cancel();
+    });
+  } else if (btnVoz) {
+    btnVoz.style.display = "none"; // el navegador no soporta síntesis de voz
+  }
+
+  // --- Reconocimiento de voz (hablarle al agente) ---
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const btnMic = document.getElementById("chat-mic-btn");
+  if (SpeechRecognitionAPI && btnMic) {
+    reconocimiento = new SpeechRecognitionAPI();
+    reconocimiento.lang = "es-VE";
+    reconocimiento.continuous = false;
+    reconocimiento.interimResults = false;
+
+    reconocimiento.onstart = () => {
+      escuchando = true;
+      btnMic.classList.add("escuchando");
+    };
+    reconocimiento.onend = () => {
+      escuchando = false;
+      btnMic.classList.remove("escuchando");
+    };
+    reconocimiento.onerror = (e) => {
+      escuchando = false;
+      btnMic.classList.remove("escuchando");
+      if (e.error !== "no-speech" && e.error !== "aborted") {
+        console.error("Error de reconocimiento de voz:", e.error);
+      }
+    };
+    reconocimiento.onresult = (e) => {
+      const texto = e.results[0][0].transcript;
+      const input = document.getElementById("chat-input");
+      if (input && texto) {
+        input.value = texto;
+        document.getElementById("chat-form").requestSubmit();
+      }
+    };
+
+    btnMic.style.display = "";
+    btnMic.addEventListener("click", () => {
+      if (escuchando) {
+        reconocimiento.stop();
+      } else {
+        window.speechSynthesis?.cancel(); // no se solapa con una lectura en curso
+        try { reconocimiento.start(); } catch (err) { /* ya estaba iniciado */ }
+      }
+    });
+  }
+}
+
+function actualizarIconoVoz() {
+  const btn = document.getElementById("chat-voz-toggle");
+  if (!btn) return;
+  btn.innerHTML = vozActivada ? '<i class="fa-solid fa-volume-high"></i>' : '<i class="fa-solid fa-volume-xmark"></i>';
+  btn.classList.toggle("activo", vozActivada);
+  btn.title = vozActivada ? "Dejar de leer respuestas en voz alta" : "Leer respuestas en voz alta";
+}
+
+function hablar(texto) {
+  if (!window.speechSynthesis || !texto) return;
+  window.speechSynthesis.cancel(); // corta cualquier lectura anterior antes de empezar una nueva
+  const utterance = new SpeechSynthesisUtterance(texto);
+  utterance.lang = "es-VE";
+  utterance.rate = 1;
+  const voces = window.speechSynthesis.getVoices();
+  const vozEs = voces.find(v => v.lang && v.lang.toLowerCase().startsWith("es"));
+  if (vozEs) utterance.voice = vozEs;
+  window.speechSynthesis.speak(utterance);
 }
 
 function alternarPanel(mostrar) {
@@ -64,6 +159,17 @@ function agregarMensaje(texto, rol) {
   const div = document.createElement("div");
   div.className = "chat-msg " + (rol === "agente" ? "chat-msg-agente" : "chat-msg-usuario");
   div.textContent = texto;
+
+  if (rol === "agente" && window.speechSynthesis) {
+    const btnEscuchar = document.createElement("button");
+    btnEscuchar.className = "chat-msg-escuchar";
+    btnEscuchar.type = "button";
+    btnEscuchar.title = "Escuchar esta respuesta";
+    btnEscuchar.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+    btnEscuchar.addEventListener("click", () => hablar(texto));
+    div.appendChild(btnEscuchar);
+  }
+
   cont.appendChild(div);
   cont.scrollTop = cont.scrollHeight;
 }
@@ -143,6 +249,7 @@ async function enviarPregunta(e) {
   const respuesta = resp.ok ? resp.respuesta : "No pude responder: " + resp.error;
   agregarMensaje(respuesta, "agente");
   historial.push({ rol: "agente", texto: respuesta });
+  if (vozActivada) hablar(respuesta);
 }
 
 document.addEventListener("kacosa:analisis-listo", actualizarContextoInfo);
